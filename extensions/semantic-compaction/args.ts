@@ -87,7 +87,7 @@ function parseKeep(args: string[]): SemanticCompactArgs["keep"] {
 		throw new Error("`keep` requires at least <mode> to be specified");
 
 	const rawMode = args.shift() as string;
-	if (rawMode.endsWith("%")) {
+	if (/\d+%/.test(rawMode)) {
 		const value = parseInt(rawMode.substring(0, rawMode.length - 1), 10);
 		if (!isPercent(value))
 			throw new Error("Percentages must be an integer between 0 and 100");
