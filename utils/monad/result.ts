@@ -15,11 +15,13 @@ export interface IResult<T, E> {
 	 */
 	unwrapErr(): E | never;
 	match<M>(pattern: ResultMatchPattern<T, E, M>): M;
-	map<M>(fn: (value: T) => M): IResult<M, E>;
-	mapErr<M>(fn: (err: E) => M): IResult<T, M>;
+	map<M>(fn: (value: T) => M): Result<M, E>;
+	mapErr<M>(fn: (err: E) => M): Result<T, M>;
+	flatMap<M>(fn: (value: T) => Result<M, E>): Result<M, E>;
+	mapPromise<M>(fn: (value: T) => Promise<M>): Promise<Result<M, E>>;
 }
 
-export abstract class Result<T, E> implements IResult<T, E> {
+export abstract class Result<T, E = Error> implements IResult<T, E> {
 	public static Ok<T>(value: T): Result<T, never> {
 		return new OkResult(value);
 	}
@@ -27,7 +29,9 @@ export abstract class Result<T, E> implements IResult<T, E> {
 		return new ErrResult(error);
 	}
 
-	public static fromPromise<T, E>(p: Promise<T>): Promise<Result<T, E>> {
+	public static fromPromise<T, E = Error>(
+		p: Promise<T>,
+	): Promise<Result<T, E>> {
 		return p.then(Result.Ok, Result.Err);
 	}
 
@@ -48,8 +52,10 @@ export abstract class Result<T, E> implements IResult<T, E> {
 	abstract unwrapOr(defaultValue: T): T;
 	abstract unwrapErr(): E | never;
 	abstract match<M>(pattern: ResultMatchPattern<T, E, M>): M;
-	abstract map<M>(fn: (value: T) => M): IResult<M, E>;
-	abstract mapErr<M>(fn: (err: E) => M): IResult<T, M>;
+	abstract map<M>(fn: (value: T) => M): Result<M, E>;
+	abstract mapErr<M>(fn: (err: E) => M): Result<T, M>;
+	abstract flatMap<M>(fn: (value: T) => Result<M, E>): Result<M, E>;
+	abstract mapPromise<M>(fn: (value: T) => Promise<M>): Promise<Result<M, E>>;
 }
 
 export class OkResult<T, E> extends Result<T, E> {
@@ -76,11 +82,17 @@ export class OkResult<T, E> extends Result<T, E> {
 	match<M>(pattern: ResultMatchPattern<T, E, M>): M {
 		return pattern.ok(this.value);
 	}
-	map<M>(fn: (value: T) => M): IResult<M, E> {
+	map<M>(fn: (value: T) => M): Result<M, E> {
 		return Result.Ok(fn(this.value));
 	}
-	mapErr<M>(_: (err: E) => M): IResult<T, M> {
+	mapErr<M>(_: (err: E) => M): Result<T, M> {
 		return Result.Ok(this.value);
+	}
+	flatMap<M>(fn: (value: T) => Result<M, E>): Result<M, E> {
+		return fn(this.value);
+	}
+	mapPromise<M>(fn: (value: T) => Promise<M>): Promise<Result<M, E>> {
+		return Result.fromPromise(fn(this.value));
 	}
 }
 
@@ -108,10 +120,16 @@ export class ErrResult<T, E> extends Result<T, E> {
 	match<M>(pattern: ResultMatchPattern<T, E, M>): M {
 		return pattern.err(this.error);
 	}
-	map<M>(_: (value: T) => M): IResult<M, E> {
+	map<M>(_: (value: T) => M): Result<M, E> {
 		return Result.Err(this.error);
 	}
-	mapErr<M>(fn: (err: E) => M): IResult<T, M> {
+	mapErr<M>(fn: (err: E) => M): Result<T, M> {
 		return Result.Err(fn(this.error));
+	}
+	flatMap<M>(_: (value: T) => Result<M, E>): Result<M, E> {
+		return Result.Err(this.error);
+	}
+	mapPromise<M>(_: (value: T) => Promise<M>): Promise<Result<M, E>> {
+		return Promise.resolve(Result.Err(this.error));
 	}
 }
