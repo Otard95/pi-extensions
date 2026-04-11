@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    // Module & Target
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": [
+      "ES2022"
+    ],
+    "moduleResolution": "bundler",
+    "types": [
+      "node"
+    ],
+    // Module Interop
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    // Strict Type Checking (recommended for quality)
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    // "exactOptionalPropertyTypes": true,  // Disabled: too strict for optional properties
+    // "noImplicitReturns": true,  // Disabled: not needed when return types are explicit
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "forceConsistentCasingInFileNames": true,
+    // Performance
+    "skipLibCheck": true
+  },
+  "include": [
+    "extensions/**/*.ts",
+    "utils/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules/",
+    "**/*.d.ts"
+  ]
+}
