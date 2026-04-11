@@ -122,8 +122,7 @@ pi-extensions/
 │   ├── semantic-compaction/
 │   └── subagent/
 ├── utils/
-│   └── monad/
-│       └── result.ts
+│   └── **/*
 ├── package.json     # Pi package manifest
 └── flake.nix        # Nix development environment
 ```
