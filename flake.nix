@@ -16,15 +16,6 @@
           buildInputs = with pkgs; [
             nodejs_22
           ];
-
-          shellHook = ''
-            echo "pi-extensions development environment"
-            echo "Node.js: $(node --version)"
-            echo "npm: $(npm --version)"
-            echo ""
-            echo "Run 'npm install' to install dependencies"
-            echo "Extensions are loaded from: ./extensions"
-          '';
         };
       }
     );
