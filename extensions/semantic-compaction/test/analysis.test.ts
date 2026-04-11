@@ -39,6 +39,7 @@ describe("isMessageEntry", () => {
 			timestamp: "",
 			provider: "anthropic",
 			model: "claude-sonnet-4-20250514",
+			modelId: "claude-sonnet-4-20250514",
 		};
 		expect(isMessageEntry(entry)).toBe(false);
 	});
