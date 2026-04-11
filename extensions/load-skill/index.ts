@@ -8,8 +8,12 @@
 
 import { readFileSync } from "node:fs";
 import { dirname } from "node:path";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { stripFrontmatter } from "@mariozechner/pi-coding-agent";
+import {
+	keyHint,
+	stripFrontmatter,
+	type ExtensionAPI,
+} from "@mariozechner/pi-coding-agent";
+import { Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 
 export default function (pi: ExtensionAPI) {
@@ -71,6 +75,30 @@ export default function (pi: ExtensionAPI) {
 					details: {},
 				};
 			}
+		},
+		renderResult(result, options, theme, context) {
+			const text =
+				(context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
+			const output =
+				result.content
+					.filter((c) => c.type === "text")
+					.map((c) => ("text" in c ? c.text : ""))
+					.join("\n") || "";
+			const lines = output.split("\n");
+			const maxLines = options.expanded ? lines.length : 10;
+			const displayLines = lines.slice(0, maxLines);
+			const remaining = lines.length - maxLines;
+
+			let rendered = displayLines
+				.map((l) => theme.fg("toolOutput", l))
+				.join("\n");
+
+			if (remaining > 0) {
+				rendered += `${theme.fg("muted", `\n... (${remaining} more lines,`)} ${keyHint("app.tools.expand", "to expand")})`;
+			}
+
+			text.setText(`\n${rendered}`);
+			return text;
 		},
 	});
 }
