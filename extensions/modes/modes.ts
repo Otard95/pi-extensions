@@ -44,16 +44,15 @@ export function loadModes(): ModeConfig[] {
 		const name = frontmatter["name"] || entry.name.replace(/\.md$/, "");
 		const description = frontmatter["description"] || "";
 
-		const tools =
-			frontmatter["tools"]
-				?.split(",")
-				.map((t: string) => t.trim())
-				.filter(Boolean) ?? [];
+		const tools = frontmatter["tools"]
+			?.split(",")
+			.map((t: string) => t.trim())
+			.filter(Boolean);
 
 		modes.push({
 			name,
 			description,
-			tools: tools,
+			tools: tools?.length ? tools : undefined,
 			model: frontmatter["model"],
 			systemPrompt: body.trim(),
 			filePath,

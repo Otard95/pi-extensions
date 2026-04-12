@@ -21,17 +21,30 @@
  * Usage:
  *   /mode           - show mode selector (or clear mode)
  *   /mode plan      - switch to "plan" mode directly
- *   Ctrl+Shift+M    - cycle through modes
+ *   Ctrl+}          - cycle through modes (configurable via "ext.modes.cycle" in keybindings.json)
+ *   Ctrl+{          - cycle reverse (configurable via "ext.modes.cycleReverse" in keybindings.json)
  */
 
+import { existsSync, readFileSync } from "node:fs";
 import * as path from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { getAgentDir } from "@mariozechner/pi-coding-agent";
-import { Key } from "@mariozechner/pi-tui";
+import type { KeyId } from "@mariozechner/pi-tui";
 import { ModeManager } from "./manager.js";
 import { loadModes, type ModeConfig } from "./modes.js";
 
 export type { ModeConfig } from "./modes.js";
+
+function loadKeybindings(): Record<string, string | string[]> {
+	const kbPath = path.join(getAgentDir(), "keybindings.json");
+	if (!existsSync(kbPath)) return {};
+	try {
+		const raw = JSON.parse(readFileSync(kbPath, "utf-8"));
+		if (typeof raw === "object" && raw !== null && !Array.isArray(raw))
+			return raw;
+	} catch {}
+	return {};
+}
 
 export default function modesExtension(pi: ExtensionAPI) {
 	const mgr = new ModeManager(pi);
@@ -44,6 +57,7 @@ export default function modesExtension(pi: ExtensionAPI) {
 			const modes = loadModes();
 			const items = [
 				{ value: "off", label: "off — clear active mode" },
+				{ value: "debug", label: "debug — show current mode state" },
 				...modes.map((m) => ({
 					value: m.name,
 					label: `${m.name}${m.description ? ` — ${m.description}` : ""}`,
@@ -69,6 +83,21 @@ export default function modesExtension(pi: ExtensionAPI) {
 				const arg = args.trim().toLowerCase();
 				if (arg === "off" || arg === "clear" || arg === "none") {
 					mgr.deactivate(ctx);
+					return;
+				}
+				if (arg === "debug") {
+					const active = mgr.activeMode;
+					const tools = active?.tools ?? null;
+					const defaultTools = mgr.defaultTools;
+					const lines = [
+						`Active: ${active ? active.name : "none"}`,
+						`Model: ${active?.model ?? "default"}`,
+						`Mode tools: ${tools ? tools.join(", ") : "all (unrestricted)"}`,
+						`Default tools: ${defaultTools ? defaultTools.join(", ") : "not captured"}`,
+						`Previous: ${mgr.previousModeName ?? "none"}`,
+						`Available modes: ${modes.map((m) => m.name).join(", ")}`,
+					];
+					ctx.ui.notify(lines.join("\n"), "info");
 					return;
 				}
 				const mode = modes.find((m) => m.name.toLowerCase() === arg);
@@ -112,31 +141,49 @@ export default function modesExtension(pi: ExtensionAPI) {
 
 	// --- Keyboard shortcut: cycle modes ---
 
-	pi.registerShortcut(Key.ctrlShift("m"), {
-		description: "Cycle through modes",
-		handler: async (ctx) => {
-			const modes = loadModes();
-			if (modes.length === 0) return;
+	const userBindings = loadKeybindings();
+	const cycleKey = (userBindings["ext.modes.cycle"] ?? "ctrl+}") as KeyId;
+	const cycleReverseKey = (userBindings["ext.modes.cycleReverse"] ??
+		"ctrl+{") as KeyId;
 
-			mgr.captureDefaults();
+	function cycleModes(modes: ModeConfig[], direction: 1 | -1) {
+		if (!mgr.activeMode) {
+			return direction === 1 ? modes[0] : modes[modes.length - 1];
+		}
 
-			if (!mgr.activeMode) {
-				await mgr.activate(modes[0] as ModeConfig, ctx);
-				return;
-			}
+		const currentIndex = modes.findIndex(
+			(m) => m.name === mgr.activeMode?.name,
+		);
+		const nextIndex = currentIndex + direction;
 
-			const currentIndex = modes.findIndex(
-				(m) => m.name === mgr.activeMode?.name,
-			);
-			if (currentIndex === modes.length - 1) {
-				mgr.deactivate(ctx);
-				return;
-			}
+		if (nextIndex < 0 || nextIndex >= modes.length) return null; // deactivate
+		return modes[nextIndex];
+	}
 
-			const nextIndex = currentIndex < 0 ? 0 : currentIndex + 1;
-			await mgr.activate(modes[nextIndex] as ModeConfig, ctx);
-		},
-	});
+	for (const [key, direction] of [
+		[cycleKey, 1],
+		[cycleReverseKey, -1],
+	] as const) {
+		pi.registerShortcut(key, {
+			description:
+				direction === 1
+					? "Cycle through modes"
+					: "Cycle through modes (reverse)",
+			handler: async (ctx) => {
+				const modes = loadModes();
+				if (modes.length === 0) return;
+
+				mgr.captureDefaults();
+
+				const next = cycleModes(modes, direction);
+				if (next) {
+					await mgr.activate(next, ctx);
+				} else {
+					mgr.deactivate(ctx);
+				}
+			},
+		});
+	}
 
 	// --- System prompt injection + mode switch context ---
 

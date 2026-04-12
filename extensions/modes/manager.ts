@@ -18,7 +18,7 @@ export class ModeManager {
 	/** Mode name as of the last LLM turn — used to detect switches. */
 	previousModeName: string | null = null;
 
-	private defaultTools: string[] | null = null;
+	defaultTools: string[] | null = null;
 	private pi: ExtensionAPI;
 
 	constructor(pi: ExtensionAPI) {
