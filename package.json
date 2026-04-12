@@ -1,31 +1,35 @@
 {
-  "name": "pi-extensions",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "keywords": [
-    "pi-package"
-  ],
-  "pi": {
-    "extensions": [
-      "./extensions"
-    ]
-  },
-  "devDependencies": {
-    "@mariozechner/pi-ai": "0.65.2",
-    "@mariozechner/pi-coding-agent": "0.65.2",
-    "@mariozechner/pi-tui": "0.65.2",
-    "@sinclair/typebox": "0.34.41",
-    "@types/turndown": "5.0.5",
-    "typescript": "5.9.2",
-    "vitest": "4.1.4"
-  },
-  "scripts": {
-    "check": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest"
-  },
-  "dependencies": {
-    "turndown": "7.2.0"
-  }
+	"name": "pi-extensions",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"keywords": [
+		"pi-package"
+	],
+	"pi": {
+		"extensions": [
+			"./extensions"
+		]
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.4.11",
+		"@mariozechner/pi-ai": "0.65.2",
+		"@mariozechner/pi-coding-agent": "0.65.2",
+		"@mariozechner/pi-tui": "0.65.2",
+		"@sinclair/typebox": "0.34.41",
+		"@types/turndown": "5.0.5",
+		"typescript": "5.9.2",
+		"vitest": "4.1.4"
+	},
+	"scripts": {
+		"check": "tsc --noEmit",
+		"lint": "biome check",
+		"lint:fix": "biome check --write",
+		"format": "biome format --write",
+		"test": "vitest run",
+		"test:watch": "vitest"
+	},
+	"dependencies": {
+		"turndown": "7.2.0"
+	}
 }
