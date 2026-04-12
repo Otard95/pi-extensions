@@ -6,11 +6,12 @@ Personal pi extensions bundled as a pi package.
 
 This package bundles custom extensions for the [pi coding agent](https://github.com/badlogic/pi-mono):
 
-- **guards** — Blocks bash write commands when write/edit tools are disabled, nudges toward dedicated tools
-- **load-skill** — Registers a `load_skill` tool for the LLM to load skill content by name  
-- **modes** — Custom modes defined as markdown files with `/mode` command and Ctrl+Shift+M cycling
-- **semantic-compaction** — `/semantic-compact` command that summarizes tool call groups using Haiku
-- **subagent** — Delegate tasks to isolated pi processes (single, parallel, chain modes)
+- **[guards](extensions/guards/README.md)** — Blocks bash write commands when write/edit tools are disabled, nudges toward dedicated tools
+- **[load-skill](extensions/load-skill/README.md)** — Registers a `load_skill` tool for the LLM to load skill content by name
+- **[modes](extensions/modes/README.md)** — Custom modes defined as markdown files with `/mode` command and Ctrl+Shift+M cycling
+- **[semantic-compaction](extensions/semantic-compaction/README.md)** — `/semantic-compact` command that summarizes tool call groups using Haiku
+- **[subagent](extensions/subagent/README.md)** — Delegate tasks to isolated pi processes (single, parallel, chain modes)
+- **[web-read](extensions/web-read/README.md)** — Fetch web pages as markdown with pagination and regex search
 
 ## Installation
 
