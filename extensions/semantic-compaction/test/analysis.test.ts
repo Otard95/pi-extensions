@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { at } from "../../../utils/array/at";
 import {
 	assistantdMessageHasText,
 	classifyAssistant,
@@ -177,7 +178,7 @@ describe("splitIntoTurns", () => {
 		const entries = multiTurnConversation();
 		const turns = splitIntoTurns(entries);
 		for (const turn of turns) {
-			expect(isUserMessage(turn[0]!)).toBe(true);
+			expect(isUserMessage(at(turn, 0))).toBe(true);
 		}
 	});
 
@@ -206,14 +207,14 @@ describe("findToolGroups", () => {
 		const entries = simpleConversation();
 		const groups = findToolGroups(entries);
 		expect(groups).toHaveLength(1);
-		expect(groups[0]!.toolEntries).toHaveLength(2); // toolCall + toolResult
-		expect(groups[0]!.mixedStart).toBe(false);
+		expect(groups[0]?.toolEntries).toHaveLength(2); // toolCall + toolResult
+		expect(groups[0]?.mixedStart).toBe(false);
 	});
 
 	it("identifies pre-context", () => {
 		const entries = simpleConversation();
 		const groups = findToolGroups(entries);
-		expect(groups[0]!.preContext).toMatchObject({
+		expect(groups[0]?.preContext).toMatchObject({
 			type: "message",
 			message: { role: "user" },
 		});
@@ -222,7 +223,7 @@ describe("findToolGroups", () => {
 	it("identifies post-context", () => {
 		const entries = simpleConversation();
 		const groups = findToolGroups(entries);
-		expect(groups[0]!.postContext).toMatchObject({
+		expect(groups[0]?.postContext).toMatchObject({
 			type: "message",
 			message: { role: "assistant" },
 		});
@@ -253,7 +254,7 @@ describe("findToolGroups", () => {
 		];
 		const groups = findToolGroups(entries);
 		expect(groups).toHaveLength(1);
-		expect(groups[0]!.mixedStart).toBe(true);
+		expect(groups[0]?.mixedStart).toBe(true);
 	});
 
 	it("uses mixed entry as pre-context", () => {
@@ -266,7 +267,7 @@ describe("findToolGroups", () => {
 			toolResult("Edit", "OK"),
 		];
 		const groups = findToolGroups(entries);
-		expect(groups[0]!.preContext).toBe(entries[1]);
+		expect(groups[0]?.preContext).toBe(entries[1]);
 	});
 
 	it("handles consecutive tool calls", () => {
@@ -281,7 +282,7 @@ describe("findToolGroups", () => {
 		const groups = findToolGroups(entries);
 		// Consecutive tool calls should form one group
 		expect(groups).toHaveLength(1);
-		expect(groups[0]!.toolEntries).toHaveLength(4);
+		expect(groups[0]?.toolEntries).toHaveLength(4);
 	});
 
 	it("returns empty for entries with no tool calls", () => {
@@ -293,6 +294,6 @@ describe("findToolGroups", () => {
 	it("has positive token estimates", () => {
 		const entries = simpleConversation();
 		const groups = findToolGroups(entries);
-		expect(groups[0]!.tokenEstimate).toBeGreaterThan(0);
+		expect(groups[0]?.tokenEstimate).toBeGreaterThan(0);
 	});
 });

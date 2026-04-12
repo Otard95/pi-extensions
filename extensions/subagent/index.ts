@@ -22,6 +22,7 @@ import { StringEnum } from "@mariozechner/pi-ai";
 import {
 	type ExtensionAPI,
 	getMarkdownTheme,
+	type ThemeColor,
 } from "@mariozechner/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
@@ -69,7 +70,7 @@ function formatUsageStats(
 function formatToolCall(
 	toolName: string,
 	args: Record<string, unknown>,
-	themeFg: (color: any, text: string) => string,
+	themeFg: (color: ThemeColor, text: string) => string,
 ): string {
 	const shortenPath = (p: string) => {
 		const home = os.homedir();
@@ -190,7 +191,7 @@ function getFinalOutput(messages: Message[]): string {
 
 type DisplayItem =
 	| { type: "text"; text: string }
-	| { type: "toolCall"; name: string; args: Record<string, any> };
+	| { type: "toolCall"; name: string; args: Record<string, unknown> };
 
 function getDisplayItems(messages: Message[]): DisplayItem[] {
 	const items: DisplayItem[] = [];
@@ -362,15 +363,15 @@ async function runSingleAgent(
 
 			const processLine = (line: string) => {
 				if (!line.trim()) return;
-				let event: any;
+				let event: Record<string, unknown>;
 				try {
 					event = JSON.parse(line);
 				} catch {
 					return;
 				}
 
-				if (event.type === "message_end" && event.message) {
-					const msg = event.message as Message;
+				if (event["type"] === "message_end" && event["message"]) {
+					const msg = event["message"] as Message;
 					currentResult.messages.push(msg);
 
 					if (msg.role === "assistant") {
@@ -392,8 +393,8 @@ async function runSingleAgent(
 					emitUpdate();
 				}
 
-				if (event.type === "tool_result_end" && event.message) {
-					currentResult.messages.push(event.message as Message);
+				if (event["type"] === "tool_result_end" && event["message"]) {
+					currentResult.messages.push(event["message"] as Message);
 					emitUpdate();
 				}
 			};

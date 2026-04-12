@@ -28,7 +28,7 @@ export class Site {
 				this.path,
 				this.title,
 				this._limit,
-				this._offset != undefined,
+				this._offset !== undefined,
 				pattern,
 				this._context ?? 0,
 				this.lines,

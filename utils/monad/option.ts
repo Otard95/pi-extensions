@@ -54,10 +54,6 @@ export class SomeOption<T> extends Option<T> {
 }
 
 export class NoneOption<T> extends Option<T> {
-	constructor() {
-		super();
-	}
-
 	isSome(): boolean {
 		return false;
 	}

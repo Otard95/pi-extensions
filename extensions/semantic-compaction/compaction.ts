@@ -285,5 +285,5 @@ function formatToolArgs(name: string, args: Record<string, unknown>): string {
 
 function truncate(text: string, maxLen: number): string {
 	if (text.length <= maxLen) return text;
-	return text.slice(0, maxLen - 3) + "...";
+	return `${text.slice(0, maxLen - 3)}...`;
 }

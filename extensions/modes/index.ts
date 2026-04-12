@@ -200,8 +200,7 @@ export default function modesExtension(pi: ExtensionAPI) {
 		} = {};
 
 		if (mgr.activeMode?.systemPrompt)
-			ret.systemPrompt =
-				event.systemPrompt + "\n\n" + mgr.activeMode.systemPrompt;
+			ret.systemPrompt = `${event.systemPrompt}\n\n${mgr.activeMode.systemPrompt}`;
 
 		if (switched)
 			ret.message = {

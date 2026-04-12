@@ -129,13 +129,13 @@ function normalizeKeepMode(mode: string): SemanticCompactKeepMode {
 function parseModeValue(mode: SemanticCompactKeepMode, arg: string): number {
 	if (mode === SemanticCompactKeepMode.Percent) {
 		if (arg.endsWith("%")) arg = arg.substring(0, arg.length - 1);
-		const value = parseInt(arg);
+		const value = parseInt(arg, 10);
 		if (!isPercent(value))
 			throw new Error("Percentages must be an integer between 0 and 100");
 		return value;
 	}
 
-	const value = parseInt(arg);
+	const value = parseInt(arg, 10);
 	if (!Number.isInteger(value))
 		throw new Error(`The value for '${mode}' mode must be an integer`);
 

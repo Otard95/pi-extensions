@@ -1,9 +1,11 @@
+import type { AssistantMessage } from "@mariozechner/pi-ai";
 import type {
 	SessionEntry,
 	SessionMessageEntry,
 } from "@mariozechner/pi-coding-agent";
-import type { AssistantMessage } from "@mariozechner/pi-ai";
 import { estimateTokens } from "@mariozechner/pi-coding-agent";
+import { at } from "../../utils/array/at";
+import { last } from "../../utils/array/last";
 
 // --- Classification helpers ---
 
@@ -160,7 +162,7 @@ export function findToolGroups(turnEntries: SessionEntry[]): ToolGroup[] {
 	let i = 0;
 
 	while (i < turnEntries.length) {
-		const entry = turnEntries[i]!;
+		const entry = at(turnEntries, i);
 
 		// Detect group start
 		let toolStart = -1;
@@ -187,8 +189,8 @@ export function findToolGroups(turnEntries: SessionEntry[]): ToolGroup[] {
 
 		// Collect consecutive tool entries
 		let j = toolStart + 1;
-		while (j < turnEntries.length && isToolGroupEntry(turnEntries[j]!)) {
-			toolEntries.push(turnEntries[j]!);
+		while (j < turnEntries.length && isToolGroupEntry(at(turnEntries, j))) {
+			toolEntries.push(at(turnEntries, j));
 			j++;
 		}
 
@@ -202,8 +204,8 @@ export function findToolGroups(turnEntries: SessionEntry[]): ToolGroup[] {
 
 		const tokenEstimate = estimateToolGroupTokens(toolEntries);
 
-		const startId = toolEntries[0]!.id;
-		const endId = toolEntries[toolEntries.length - 1]!.id;
+		const startId = at(toolEntries, 0).id;
+		const endId = last(toolEntries).id;
 
 		groups.push({
 			startId,
@@ -227,9 +229,8 @@ function findContextBefore(
 	beforeIndex: number,
 ): SessionEntry | null {
 	for (let k = beforeIndex - 1; k >= 0; k--) {
-		if (isContextEntry(entries[k]!)) {
-			return entries[k]!;
-		}
+		const e = at(entries, k);
+		if (isContextEntry(e)) return e;
 	}
 	return null;
 }
@@ -240,9 +241,8 @@ function findContextAfter(
 	afterIndex: number,
 ): SessionEntry | null {
 	for (let k = afterIndex; k < entries.length; k++) {
-		if (isContextEntry(entries[k]!)) {
-			return entries[k]!;
-		}
+		const e = at(entries, k);
+		if (isContextEntry(e)) return e;
 	}
 	return null;
 }

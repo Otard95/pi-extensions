@@ -101,7 +101,7 @@ export default function (pi: ExtensionAPI) {
 			const compactions: ToolCompaction[] = [];
 			const failures: string[] = [];
 			for (let i = 0; i < settled.length; i++) {
-				const result = settled[i]!;
+				const result = at(settled, i);
 				if (result.status === "fulfilled") {
 					compactions.push(result.value);
 				} else {

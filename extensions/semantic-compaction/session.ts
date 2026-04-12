@@ -107,7 +107,7 @@ export function rebuildEntries(
 		}
 
 		if (comp.mixedStart) {
-			const mixedEntry = comp.toolEntries[0]! as SessionMessageEntry;
+			const mixedEntry = at(comp.toolEntries, 0) as SessionMessageEntry;
 			result.push(stripToolCalls(mixedEntry));
 		}
 

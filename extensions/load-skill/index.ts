@@ -9,9 +9,9 @@
 import { readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import {
+	type ExtensionAPI,
 	keyHint,
 	stripFrontmatter,
-	type ExtensionAPI,
 } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";

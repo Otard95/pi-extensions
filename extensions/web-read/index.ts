@@ -1,6 +1,6 @@
 import { type ExtensionAPI, keyHint } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
-import { type Static, Type } from "@sinclair/typebox";
+import { Type } from "@sinclair/typebox";
 import { fetchPage } from "./fetch";
 
 const WebReadParams = Type.Object({
@@ -26,8 +26,6 @@ const WebReadParams = Type.Object({
 		Type.Boolean({ description: "Bypass cache and re-fetch the page" }),
 	),
 });
-
-type WebReadParams = Static<typeof WebReadParams>;
 
 export default function (pi: ExtensionAPI) {
 	pi.registerTool({

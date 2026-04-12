@@ -2,16 +2,17 @@
  * Test fixtures for semantic-compaction tests.
  * Builds minimal mock SessionEntry objects.
  */
-import type {
-	SessionEntry,
-	SessionMessageEntry,
-} from "@mariozechner/pi-coding-agent";
+
 import type {
 	AssistantMessage,
 	ToolCall,
 	ToolResultMessage,
 	UserMessage,
 } from "@mariozechner/pi-ai";
+import type {
+	SessionEntry,
+	SessionMessageEntry,
+} from "@mariozechner/pi-coding-agent";
 
 let idCounter = 0;
 
@@ -173,13 +174,9 @@ export function multiTurnConversation(): SessionEntry[] {
 	return [
 		// Turn 1
 		userMessage("Read file.ts and package.json"),
-		assistantToolCall(
-			{ name: "Read", args: { path: "file.ts" } },
-		),
+		assistantToolCall({ name: "Read", args: { path: "file.ts" } }),
 		toolResult("Read", "const x = 1;"),
-		assistantToolCall(
-			{ name: "Read", args: { path: "package.json" } },
-		),
+		assistantToolCall({ name: "Read", args: { path: "package.json" } }),
 		toolResult("Read", '{"name": "test"}'),
 		assistantText("I've read both files."),
 		// Turn 2

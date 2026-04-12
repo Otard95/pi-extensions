@@ -1,5 +1,6 @@
 import type { SessionEntry } from "@mariozechner/pi-coding-agent";
 import { estimateTokens } from "@mariozechner/pi-coding-agent";
+import { at } from "../../utils/array/at";
 import type { ToolCompaction } from "./analysis";
 
 /** Format the explore-groups output */
@@ -37,7 +38,7 @@ export function formatCompactionPreview(
 	output += `\nCompactions applied: ${compactions.length}\n`;
 
 	for (let i = 0; i < compactions.length; i++) {
-		const comp = compactions[i]!;
+		const comp = at(compactions, i);
 		output += `\n--- Compaction ${i + 1} (~${comp.tokenEstimate} tokens) ---\n`;
 		output += comp.compacted;
 		output += `\n`;

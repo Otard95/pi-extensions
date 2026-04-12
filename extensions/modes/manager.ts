@@ -120,7 +120,7 @@ export class ModeManager {
 
 		if (modeEntry?.data?.activeModeName) {
 			const modes = loadModes();
-			const mode = modes.find((m) => m.name === modeEntry.data!.activeModeName);
+			const mode = modes.find((m) => m.name === modeEntry.data?.activeModeName);
 			if (mode) {
 				this.activeMode = mode;
 				if (mode.tools) {

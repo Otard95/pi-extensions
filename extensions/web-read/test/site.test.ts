@@ -97,9 +97,9 @@ describe("SiteMatches", () => {
 		});
 
 		it("finds multiple matches", () => {
-			expect(
-				makeSite("aaa\nbbb\nccc\nbbb").filter(/bbb/).render(),
-			).toEqual(matchHeader("2 matches", "", "> 2: bbb", "---", "> 4: bbb"));
+			expect(makeSite("aaa\nbbb\nccc\nbbb").filter(/bbb/).render()).toEqual(
+				matchHeader("2 matches", "", "> 2: bbb", "---", "> 4: bbb"),
+			);
 		});
 
 		it("returns 0 matches for no hits", () => {
@@ -112,18 +112,9 @@ describe("SiteMatches", () => {
 	describe("context", () => {
 		it("includes surrounding lines", () => {
 			expect(
-				makeSite("aaa\nbbb\nccc\nddd\neee")
-					.context(1)
-					.filter(/ccc/)
-					.render(),
+				makeSite("aaa\nbbb\nccc\nddd\neee").context(1).filter(/ccc/).render(),
 			).toEqual(
-				matchHeader(
-					"1 matches",
-					"",
-					"  2: bbb",
-					"> 3: ccc",
-					"  4: ddd",
-				),
+				matchHeader("1 matches", "", "  2: bbb", "> 3: ccc", "  4: ddd"),
 			);
 		});
 
@@ -169,13 +160,7 @@ describe("SiteMatches", () => {
 			expect(
 				makeSite("aaa\nbbb\nccc").context(5).filter(/aaa/).render(),
 			).toEqual(
-				matchHeader(
-					"1 matches",
-					"",
-					"> 1: aaa",
-					"  2: bbb",
-					"  3: ccc",
-				),
+				matchHeader("1 matches", "", "> 1: aaa", "  2: bbb", "  3: ccc"),
 			);
 		});
 
@@ -183,29 +168,15 @@ describe("SiteMatches", () => {
 			expect(
 				makeSite("aaa\nbbb\nccc").context(5).filter(/ccc/).render(),
 			).toEqual(
-				matchHeader(
-					"1 matches",
-					"",
-					"  1: aaa",
-					"  2: bbb",
-					"> 3: ccc",
-				),
+				matchHeader("1 matches", "", "  1: aaa", "  2: bbb", "> 3: ccc"),
 			);
 		});
 
 		it("can be set on SiteMatches after filter", () => {
 			const matches = makeSite("aaa\nbbb\nccc\nddd\neee").filter(/ccc/);
 			expect(matches).toBeInstanceOf(SiteMatches);
-			expect(
-				(matches as SiteMatches).context(1).render(),
-			).toEqual(
-				matchHeader(
-					"1 matches",
-					"",
-					"  2: bbb",
-					"> 3: ccc",
-					"  4: ddd",
-				),
+			expect((matches as SiteMatches).context(1).render()).toEqual(
+				matchHeader("1 matches", "", "  2: bbb", "> 3: ccc", "  4: ddd"),
 			);
 		});
 	});
@@ -223,9 +194,7 @@ describe("SiteMatches", () => {
 
 	describe("offset warning", () => {
 		it("warns when offset was set before filter", () => {
-			expect(
-				makeSite("aaa\nbbb").offset(1).filter(/bbb/).render(),
-			).toEqual(
+			expect(makeSite("aaa\nbbb").offset(1).filter(/bbb/).render()).toEqual(
 				matchHeader(
 					"⚠️ 'offset' was ignored because 'pattern' was specified",
 					"",
@@ -246,9 +215,7 @@ describe("SiteMatches", () => {
 		it("filtering does not affect site render", () => {
 			const site = makeSite("aaa\nbbb\nccc");
 			site.filter(/bbb/);
-			expect(site.render()).toEqual(
-				header("1: aaa", "2: bbb", "3: ccc"),
-			);
+			expect(site.render()).toEqual(header("1: aaa", "2: bbb", "3: ccc"));
 		});
 	});
 });
