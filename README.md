@@ -20,7 +20,7 @@ Install via pi's package manager:
 pi install git:github.com/Otard95/pi-extensions
 ```
 
-Or add directly to `~/.config/pi/settings.json`:
+Or add directly to your `settings.json`:
 
 ```json
 {

@@ -4,15 +4,7 @@ Switch between custom behavioral modes that modify the system prompt, restrict a
 
 ## Installation
 
-Add the package containing this extension to `pi.packages` in your `agent.json`:
-
-```json
-{
-  "pi.packages": ["pi-extensions"]
-}
-```
-
-Alternatively, symlink or copy the `modes/` directory into your extensions folder (`~/.pi/agent/extensions/modes/`).
+See the [main README](../../README.md) for installation instructions.
 
 ## Defining Modes
 

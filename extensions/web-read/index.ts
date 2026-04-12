@@ -33,9 +33,7 @@ export default function (pi: ExtensionAPI) {
 		label: "Web Read",
 		description: [
 			"Fetch a web page and read its content as markdown.",
-			"First call with just a URL to see the beginning of the page.",
-			"Then use offset/limit to paginate, or pattern to search.",
-			"Results are cached — use refresh to re-fetch.",
+			"Use offset/limit to paginate, pattern to search, or combine them.",
 		].join("\n"),
 		parameters: WebReadParams,
 		execute: async (_toolCallId, params, _signal, _onUpdate, _ctx) => {
