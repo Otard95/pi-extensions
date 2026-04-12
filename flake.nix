@@ -41,10 +41,10 @@
             '';
             installPhase = ''
               runHook preBuild
-              cp -r node_modules/ $out/lib/node_modules
-              cp -r extensions/ $out/lib/extensions
-              cp -r utils/ $out/lib/utils
-              cp package.json $out/lib/package.json
+              cp -r node_modules $out/lib/
+              cp -r extensions $out/lib/
+              cp -r utils $out/lib/
+              cp package.json $out/lib/
               runHook postBuild
             '';
 
