@@ -50,30 +50,18 @@ const TOOL_DUPLICATE_PATTERNS: {
 	description: string;
 }[] = [
 	{
-		pattern: /^\s*cat\b/,
+		// Matches file-reading commands at the start of a command
+		pattern: /^\s*(cat|less|more|head|tail|bat)\b/,
 		tool: "read",
 		description:
-			"Use the Read tool instead of cat. It handles large files, line ranges, and images.",
+			"Use the Read tool instead of cat/less/more/head/tail/bat. It handles large files, line ranges, and images.",
 	},
 	{
-		pattern: /^\s*less\b/,
+		// Matches file-reading commands after && or ; e.g. "cd dir && cat file.ts"
+		pattern: /&&\s*(cat|less|more|head|tail|bat)\b|;\s*(cat|less|more|head|tail|bat)\b/,
 		tool: "read",
-		description: "Use the Read tool instead of less.",
-	},
-	{
-		pattern: /^\s*more\b/,
-		tool: "read",
-		description: "Use the Read tool instead of more.",
-	},
-	{
-		pattern: /^\s*head\b/,
-		tool: "read",
-		description: "Use the Read tool with offset/limit instead of head.",
-	},
-	{
-		pattern: /^\s*tail\b/,
-		tool: "read",
-		description: "Use the Read tool with offset/limit instead of tail.",
+		description:
+			"Use the Read tool instead of cat/less/more/head/tail/bat. Do not use cd && cat to circumvent this.",
 	},
 	{
 		// Matches grep/rg at the start of a command
@@ -98,11 +86,6 @@ const TOOL_DUPLICATE_PATTERNS: {
 		pattern: /\(\s*cd\b[^)]*\b(grep|rg|ripgrep)\b/,
 		tool: "grep",
 		description: "Use the Grep tool instead of grep/rg/ripgrep in bash subshells.",
-	},
-	{
-		pattern: /^\s*bat\b/,
-		tool: "read",
-		description: "Use the Read tool instead of bat.",
 	},
 ];
 
