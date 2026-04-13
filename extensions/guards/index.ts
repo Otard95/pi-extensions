@@ -76,14 +76,28 @@ const TOOL_DUPLICATE_PATTERNS: {
 		description: "Use the Read tool with offset/limit instead of tail.",
 	},
 	{
-		pattern: /^\s*(rg|ripgrep)\b/,
+		// Matches grep/rg at the start of a command
+		pattern: /^\s*(grep|rg|ripgrep)\b/,
 		tool: "grep",
-		description: "Use the Grep tool instead of rg/ripgrep in bash.",
+		description: "Use the Grep tool instead of grep/rg/ripgrep in bash.",
 	},
 	{
-		pattern: /^\s*grep\b/,
+		// Matches grep/rg after && or ; e.g. "cd dir && grep ..."
+		pattern: /&&\s*(grep|rg|ripgrep)\b|;\s*(grep|rg|ripgrep)\b/,
 		tool: "grep",
-		description: "Use the Grep tool instead of grep in bash.",
+		description: "Use the Grep tool instead of grep/rg in bash. Do not use cd && grep to circumvent this.",
+	},
+	{
+		// Matches xargs grep/rg e.g. "find . | xargs grep ..."
+		pattern: /\bxargs\s+(grep|rg|ripgrep)\b/,
+		tool: "grep",
+		description: "Use the Grep tool instead of xargs grep/rg in bash.",
+	},
+	{
+		// Matches grep/rg in subshells e.g. "(cd dir && grep ...)"
+		pattern: /\(\s*cd\b[^)]*\b(grep|rg|ripgrep)\b/,
+		tool: "grep",
+		description: "Use the Grep tool instead of grep/rg/ripgrep in bash subshells.",
 	},
 	{
 		pattern: /^\s*bat\b/,
