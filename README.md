@@ -11,6 +11,7 @@ This package bundles custom extensions for the [pi coding agent](https://github.
 - **[modes](extensions/modes/README.md)** — Custom modes defined as markdown files with `/mode` command and `Ctrl+}`/`Ctrl+{` cycling
 - **[semantic-compaction](extensions/semantic-compaction/README.md)** — `/semantic-compact` command that summarizes tool call groups using Haiku
 - **[subagent](extensions/subagent/README.md)** — Delegate tasks to isolated pi processes (single, parallel, chain modes)
+- **[searxng](extensions/searxng/README.md)** — Web search via self-hosted SearXNG instance
 - **[web-read](extensions/web-read/README.md)** — Fetch web pages as markdown with pagination and regex search
 
 ## Installation
