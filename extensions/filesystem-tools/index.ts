@@ -34,24 +34,20 @@
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { readOnlyTools } from "@mariozechner/pi-coding-agent";
 
-const TOOLS_TO_ACTIVATE = ["grep", "find", "ls"] as const;
+/** Tools from readOnlyTools that are not in the default coding set. */
+const TOOLS_TO_ACTIVATE = readOnlyTools
+	.map((t) => t.name)
+	.filter((name) => name !== "read");
 
 export default function filesystemToolsExtension(pi: ExtensionAPI) {
-	function ensureToolsActive(): void {
-		try {
-			const current = pi.getActiveTools();
-			const missing = TOOLS_TO_ACTIVATE.filter((t) => !current.includes(t));
-			if (missing.length > 0) {
-				pi.setActiveTools([...current, ...missing]);
-			}
-		} catch {
-			// API not yet initialised — will be picked up on the next event
-		}
-	}
-
 	// Fires on startup, /reload, /new, /resume, /fork
 	pi.on("session_start", () => {
-		ensureToolsActive();
+		const current = pi.getActiveTools();
+		const missing = TOOLS_TO_ACTIVATE.filter((t) => !current.includes(t));
+		if (missing.length > 0) {
+			pi.setActiveTools([...current, ...missing]);
+		}
 	});
 }
