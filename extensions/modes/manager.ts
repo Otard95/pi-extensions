@@ -10,7 +10,6 @@ import type {
 	ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
 import type { ModeConfig } from "./modes.js";
-import { loadModes } from "./modes.js";
 
 export class ModeManager {
 	activeMode: ModeConfig | null = null;
@@ -18,40 +17,45 @@ export class ModeManager {
 	/** Mode name as of the last LLM turn — used to detect switches. */
 	previousModeName: string | null = null;
 
-	defaultTools: string[] | null = null;
+	/**
+	 * Snapshot of active tools taken when transitioning from unmanaged to
+	 * managed (mode with `tools`). Cleared when returning to unmanaged.
+	 * A mode without `tools` is considered unmanaged for tool tracking.
+	 */
+	previousTools: string[] | null = null;
 	private pi: ExtensionAPI;
 
 	constructor(pi: ExtensionAPI) {
 		this.pi = pi;
 	}
 
-	// -- Defaults -----------------------------------------------------------
+	// -- Tool state helpers -------------------------------------------------
 
-	captureDefaults(): void {
-		if (this.defaultTools === null) {
-			try {
-				this.defaultTools = this.pi.getActiveTools();
-			} catch {
-				try {
-					this.defaultTools = this.pi.getAllTools().map((t) => t.name);
-				} catch {
-					// Not yet initialized — will be captured on first use
-				}
-			}
-		}
+	/** Whether a mode manages tools (has `tools` specified). */
+	private static isManaged(
+		mode: ModeConfig | null,
+	): mode is ModeConfig & Required<Pick<ModeConfig, "tools">> {
+		return mode?.tools != null;
 	}
 
 	// -- Activate / Deactivate ----------------------------------------------
 
 	async activate(mode: ModeConfig, ctx: ExtensionContext): Promise<void> {
-		this.captureDefaults();
+		const wasManaged = ModeManager.isManaged(this.activeMode);
 		this.activeMode = mode;
 
-		if (mode.tools) {
+		if (ModeManager.isManaged(mode)) {
+			// Entering managed state — snapshot if coming from unmanaged
+			if (!wasManaged) {
+				this.previousTools = this.pi.getActiveTools();
+			}
 			this.pi.setActiveTools(mode.tools);
-		} else if (this.defaultTools) {
-			this.pi.setActiveTools(this.defaultTools);
+		} else if (wasManaged && this.previousTools) {
+			// Managed → unmanaged — restore snapshot
+			this.pi.setActiveTools(this.previousTools);
+			this.previousTools = null;
 		}
+		// Unmanaged → unmanaged — no-op for tools
 
 		if (mode.model) {
 			const available = ctx.modelRegistry.getAvailable();
@@ -67,7 +71,6 @@ export class ModeManager {
 		}
 
 		this.updateStatus(ctx);
-		this.persist();
 		ctx.ui.notify(
 			`Mode: ${mode.name}${mode.description ? ` — ${mode.description}` : ""}`,
 			"info",
@@ -75,14 +78,15 @@ export class ModeManager {
 	}
 
 	deactivate(ctx: ExtensionContext): void {
+		const wasManaged = ModeManager.isManaged(this.activeMode);
 		this.activeMode = null;
 
-		if (this.defaultTools) {
-			this.pi.setActiveTools(this.defaultTools);
+		if (wasManaged && this.previousTools) {
+			this.pi.setActiveTools(this.previousTools);
+			this.previousTools = null;
 		}
 
 		this.updateStatus(ctx);
-		this.persist();
 		ctx.ui.notify("Mode cleared — default settings restored", "info");
 	}
 
@@ -97,39 +101,5 @@ export class ModeManager {
 		} else {
 			ctx.ui.setStatus("modes", undefined);
 		}
-	}
-
-	persist(): void {
-		this.pi.appendEntry("modes", {
-			activeModeName: this.activeMode?.name ?? null,
-		});
-	}
-
-	// -- Restore from session -----------------------------------------------
-
-	restore(ctx: ExtensionContext): void {
-		this.captureDefaults();
-
-		const entries = ctx.sessionManager.getEntries();
-		const modeEntry = entries
-			.filter(
-				(e: { type: string; customType?: string }) =>
-					e.type === "custom" && e.customType === "modes",
-			)
-			.pop() as { data?: { activeModeName: string | null } } | undefined;
-
-		if (modeEntry?.data?.activeModeName) {
-			const modes = loadModes();
-			const mode = modes.find((m) => m.name === modeEntry.data?.activeModeName);
-			if (mode) {
-				this.activeMode = mode;
-				if (mode.tools) {
-					this.pi.setActiveTools(mode.tools);
-				}
-				// Don't re-set model on resume — user may have changed it
-			}
-		}
-
-		this.updateStatus(ctx);
 	}
 }

@@ -88,12 +88,12 @@ export default function modesExtension(pi: ExtensionAPI) {
 				if (arg === "debug") {
 					const active = mgr.activeMode;
 					const tools = active?.tools ?? null;
-					const defaultTools = mgr.defaultTools;
+					const previousTools = mgr.previousTools;
 					const lines = [
 						`Active: ${active ? active.name : "none"}`,
 						`Model: ${active?.model ?? "default"}`,
 						`Mode tools: ${tools ? tools.join(", ") : "all (unrestricted)"}`,
-						`Default tools: ${defaultTools ? defaultTools.join(", ") : "not captured"}`,
+						`Previous tools: ${previousTools ? previousTools.join(", ") : "none (unmanaged)"}`,
 						`Previous: ${mgr.previousModeName ?? "none"}`,
 						`Available modes: ${modes.map((m) => m.name).join(", ")}`,
 					];
@@ -173,8 +173,6 @@ export default function modesExtension(pi: ExtensionAPI) {
 				const modes = loadModes();
 				if (modes.length === 0) return;
 
-				mgr.captureDefaults();
-
 				const next = cycleModes(modes, direction);
 				if (next) {
 					await mgr.activate(next, ctx);
@@ -212,11 +210,5 @@ export default function modesExtension(pi: ExtensionAPI) {
 			};
 
 		return ret;
-	});
-
-	// --- Restore state on session start ---
-
-	pi.on("session_start", async (_event, ctx) => {
-		mgr.restore(ctx);
 	});
 }
