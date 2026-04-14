@@ -9,10 +9,31 @@
  *
  * - Bash tool guard: Blocks bash commands that duplicate dedicated tools
  *   (cat → read, grep/rg → grep tool) to encourage proper tool usage.
+ *
+ * - Glob guard: Blocks grep/find from searching overly broad paths
+ *   (/, /home, $HOME, /nix, etc.) or root-anchored glob patterns.
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ToolCallEvent } from "@mariozechner/pi-coding-agent";
 import { isToolCallEventType } from "@mariozechner/pi-coding-agent";
+import { resolve } from "node:path";
+import { homedir } from "node:os";
+
+// Paths that are too broad to ever search recursively
+const BLOCKED_PATHS = [
+	"/",
+	"/home",
+	homedir(),
+	"/nix",
+	"/etc",
+	"/usr",
+	"/var",
+	"/tmp",
+	"/opt",
+	"/run",
+	"/sys",
+	"/proc",
+];
 
 // Patterns that write to files via bash
 const WRITE_PATTERNS: { pattern: RegExp; description: string }[] = [
@@ -92,39 +113,79 @@ const TOOL_DUPLICATE_PATTERNS: {
 	},
 ];
 
-export default function guardsExtension(pi: ExtensionAPI) {
-	pi.on("tool_call", (event) => {
-		if (!isToolCallEventType("bash", event)) return;
+type BlockResult = { block: true; reason: string } | undefined;
 
-		const command: string = event.input.command || "";
-		const activeTools = pi.getActiveTools();
-		const hasWrite =
-			activeTools.includes("write") || activeTools.includes("edit");
+function checkBashGuards(
+	event: ToolCallEvent,
+	activeTools: string[],
+): BlockResult {
+	if (!isToolCallEventType("bash", event)) return;
 
-		// 1. Bash write guard: block file-writing commands when write/edit tools are unavailable
-		if (!hasWrite) {
-			for (const { pattern, description } of WRITE_PATTERNS) {
-				if (pattern.test(command)) {
-					return {
-						block: true,
-						reason:
-							`Blocked: "${description}" — file modifications are not allowed in the current mode. ` +
-							`The write and edit tools are disabled. Do not attempt to bypass this restriction ` +
-							`through bash, sed, awk, or any other workaround. ` +
-							`Inform the user if this action is needed so they can switch modes.`,
-					};
-				}
-			}
-		}
+	const command: string = event.input.command || "";
+	const hasWrite =
+		activeTools.includes("write") || activeTools.includes("edit");
 
-		// 2. Bash tool guard: nudge toward dedicated tools
-		for (const { pattern, tool, description } of TOOL_DUPLICATE_PATTERNS) {
-			if (pattern.test(command) && activeTools.includes(tool)) {
+	// 1. Bash write guard: block file-writing commands when write/edit tools are unavailable
+	if (!hasWrite) {
+		for (const { pattern, description } of WRITE_PATTERNS) {
+			if (pattern.test(command)) {
 				return {
 					block: true,
-					reason: `Blocked: ${description}`,
+					reason:
+						`Blocked: "${description}" — file modifications are not allowed in the current mode. ` +
+						`The write and edit tools are disabled. Do not attempt to bypass this restriction ` +
+						`through bash, sed, awk, or any other workaround. ` +
+						`Inform the user if this action is needed so they can switch modes.`,
 				};
 			}
 		}
+	}
+
+	// 2. Bash tool guard: nudge toward dedicated tools
+	for (const { pattern, tool, description } of TOOL_DUPLICATE_PATTERNS) {
+		if (pattern.test(command) && activeTools.includes(tool)) {
+			return {
+				block: true,
+				reason: `Blocked: ${description}`,
+			};
+		}
+	}
+}
+
+function checkGlobGuard(
+	event: ToolCallEvent,
+	cwd: string,
+): BlockResult {
+	if (!isToolCallEventType("grep", event) && !isToolCallEventType("find", event)) return;
+
+	const input = event.input as { path?: string; pattern?: string };
+
+	if (input.path) {
+		const resolved = resolve(cwd, input.path).replace(/\/+$/, "") || "/";
+
+		if (BLOCKED_PATHS.includes(resolved)) {
+			return {
+				block: true,
+				reason:
+					`Blocked ${event.toolName}: path "${input.path}" resolves to "${resolved}" which is too broad. ` +
+					`Use a more specific directory.`,
+			};
+		}
+	}
+
+	if (input.pattern && /^\/.*\*\*/.test(input.pattern)) {
+		return {
+			block: true,
+			reason:
+				`Blocked ${event.toolName}: pattern "${input.pattern}" searches from filesystem root. ` +
+				`Use a relative pattern or set a specific path.`,
+		};
+	}
+}
+
+export default function guardsExtension(pi: ExtensionAPI) {
+	pi.on("tool_call", (event, ctx) => {
+		return checkBashGuards(event, pi.getActiveTools())
+			?? checkGlobGuard(event, ctx.cwd);
 	});
 }
