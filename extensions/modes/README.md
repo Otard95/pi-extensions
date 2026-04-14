@@ -85,6 +85,6 @@ If a mode specifies `model`, the extension switches to that model on activation.
 
 When a mode is activated or deactivated, a hidden context message is injected into the conversation so the LLM is aware of the change. This message is not displayed in the UI.
 
-### Session Persistence
+### Session Behavior
 
-The active mode is persisted to the session file. When resuming a session, the previously active mode is automatically restored (including tool restrictions), but the model is not re-applied.
+Modes are session-ephemeral — they reset when starting a new session or resuming an existing one. Use `/mode` or the keyboard shortcuts to reactivate.

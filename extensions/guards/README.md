@@ -22,3 +22,7 @@ Blocks bash commands that duplicate dedicated tools, nudging LLM toward proper t
 | `grep`, `rg`         | Grep tool     |
 
 Only blocks when the corresponding dedicated tool is available.
+
+### Glob Guard
+
+Blocks `grep` and `find` tool calls that target overly broad directories (`/`, `/home`, `$HOME`, `/nix`, `/etc`, etc.) or use root-anchored glob patterns (`/**...`). Prevents accidentally searching the entire filesystem.

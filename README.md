@@ -6,7 +6,8 @@ Personal pi extensions bundled as a pi package.
 
 This package bundles custom extensions for the [pi coding agent](https://github.com/badlogic/pi-mono):
 
-- **[guards](extensions/guards/README.md)** — Blocks bash write commands when write/edit tools are disabled, nudges toward dedicated tools
+- **[filesystem-tools](extensions/filesystem-tools/README.md)** — Activates pi's built-in `grep`, `find`, and `ls` tools in the default coding session
+- **[guards](extensions/guards/README.md)** — Blocks bash write commands when write/edit tools are disabled, nudges toward dedicated tools, blocks overly broad grep/find paths
 - **[load-skill](extensions/load-skill/README.md)** — Registers a `load_skill` tool for the LLM to load skill content by name
 - **[modes](extensions/modes/README.md)** — Custom modes defined as markdown files with `/mode` command and `Ctrl+}`/`Ctrl+{` cycling
 - **[semantic-compaction](extensions/semantic-compaction/README.md)** — `/semantic-compact` command that summarizes tool call groups using Haiku
@@ -118,11 +119,14 @@ Runs TypeScript type checking without emitting files.
 ```
 pi-extensions/
 ├── extensions/
+│   ├── filesystem-tools/
 │   ├── guards/
 │   ├── load-skill/
 │   ├── modes/
+│   ├── searxng/
 │   ├── semantic-compaction/
-│   └── subagent/
+│   ├── subagent/
+│   └── web-read/
 ├── utils/
 │   └── **/*
 ├── package.json     # Pi package manifest
