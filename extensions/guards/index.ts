@@ -14,10 +14,13 @@
  *   (/, /home, $HOME, /nix, etc.) or root-anchored glob patterns.
  */
 
-import type { ExtensionAPI, ToolCallEvent } from "@mariozechner/pi-coding-agent";
-import { isToolCallEventType } from "@mariozechner/pi-coding-agent";
-import { resolve } from "node:path";
 import { homedir } from "node:os";
+import { resolve } from "node:path";
+import type {
+	ExtensionAPI,
+	ToolCallEvent,
+} from "@mariozechner/pi-coding-agent";
+import { isToolCallEventType } from "@mariozechner/pi-coding-agent";
 
 // Paths that are too broad to ever search recursively
 const BLOCKED_PATHS = [
@@ -79,7 +82,8 @@ const TOOL_DUPLICATE_PATTERNS: {
 	},
 	{
 		// Matches file-reading commands after && or ; e.g. "cd dir && cat file.ts"
-		pattern: /&&\s*(cat|less|more|head|tail|bat)\b|;\s*(cat|less|more|head|tail|bat)\b/,
+		pattern:
+			/&&\s*(cat|less|more|head|tail|bat)\b|;\s*(cat|less|more|head|tail|bat)\b/,
 		tool: "read",
 		description:
 			"Use the Read tool instead of cat/less/more/head/tail/bat. Do not use cd && cat to circumvent this.",
@@ -94,7 +98,8 @@ const TOOL_DUPLICATE_PATTERNS: {
 		// Matches grep/rg after && or ; e.g. "cd dir && grep ..."
 		pattern: /&&\s*(grep|rg|ripgrep)\b|;\s*(grep|rg|ripgrep)\b/,
 		tool: "grep",
-		description: "Use the Grep tool instead of grep/rg in bash. Do not use cd && grep to circumvent this.",
+		description:
+			"Use the Grep tool instead of grep/rg in bash. Do not use cd && grep to circumvent this.",
 	},
 	{
 		// Matches xargs grep/rg e.g. "find . | xargs grep ..."
@@ -106,7 +111,8 @@ const TOOL_DUPLICATE_PATTERNS: {
 		// Matches grep/rg in subshells e.g. "(cd dir && grep ...)"
 		pattern: /\(\s*cd\b[^)]*\b(grep|rg|ripgrep)\b/,
 		tool: "grep",
-		description: "Use the Grep tool instead of grep/rg/ripgrep in bash subshells.",
+		description:
+			"Use the Grep tool instead of grep/rg/ripgrep in bash subshells.",
 	},
 ];
 
@@ -149,11 +155,12 @@ function checkBashGuards(
 	}
 }
 
-function checkGlobGuard(
-	event: ToolCallEvent,
-	cwd: string,
-): BlockResult {
-	if (!isToolCallEventType("grep", event) && !isToolCallEventType("find", event)) return;
+function checkGlobGuard(event: ToolCallEvent, cwd: string): BlockResult {
+	if (
+		!isToolCallEventType("grep", event) &&
+		!isToolCallEventType("find", event)
+	)
+		return;
 
 	const input = event.input as { path?: string; pattern?: string };
 
@@ -182,7 +189,9 @@ function checkGlobGuard(
 
 export default function guardsExtension(pi: ExtensionAPI) {
 	pi.on("tool_call", (event, ctx) => {
-		return checkBashGuards(event, pi.getActiveTools())
-			?? checkGlobGuard(event, ctx.cwd);
+		return (
+			checkBashGuards(event, pi.getActiveTools()) ??
+			checkGlobGuard(event, ctx.cwd)
+		);
 	});
 }
