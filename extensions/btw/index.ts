@@ -131,7 +131,8 @@ function makeResultPanel(
 	let cachedHeader: string[] = [];
 	let cachedFooter: string[] = [];
 	let mdComponent: Markdown | null = null;
-	const mdTheme = getMarkdownTheme();
+	// Re-fetched in invalidate() so theme switches are picked up
+	let mdTheme = getMarkdownTheme();
 
 	function rebuildChrome(width: number) {
 		cachedHeader = [
@@ -160,6 +161,8 @@ function makeResultPanel(
 
 			const body = mdComponent?.render(width) ?? [];
 			const all = [...cachedHeader, ...body, ...cachedFooter];
+			// Cap scroll so the last line is always reachable but never exceeded
+			scrollOffset = Math.min(scrollOffset, Math.max(0, all.length - 1));
 			return all.slice(scrollOffset);
 		},
 
@@ -179,7 +182,11 @@ function makeResultPanel(
 
 		invalidate(): void {
 			cachedWidth = -1;
-			mdComponent?.invalidate();
+			mdTheme = getMarkdownTheme(); // pick up any theme change
+			if (mdComponent) {
+				// Recreate with updated theme rather than just invalidating cache
+				mdComponent = new Markdown(answer || " ", 0, 0, mdTheme);
+			}
 		},
 	};
 }
