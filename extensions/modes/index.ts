@@ -30,8 +30,12 @@ import * as path from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { getAgentDir } from "@mariozechner/pi-coding-agent";
 import type { KeyId } from "@mariozechner/pi-tui";
+import { codingTools } from "@mariozechner/pi-coding-agent";
 import { ModeManager } from "./manager.js";
 import { loadModes, type ModeConfig } from "./modes.js";
+
+/** Default tool names that should always be present when no mode is active. */
+const DEFAULT_TOOL_NAMES = codingTools.map((t) => t.name);
 
 export type { ModeConfig } from "./modes.js";
 
@@ -87,12 +91,14 @@ export default function modesExtension(pi: ExtensionAPI) {
 				}
 				if (arg === "debug") {
 					const active = mgr.activeMode;
-					const tools = active?.tools ?? null;
+					const modeTools = active?.tools ?? null;
 					const previousTools = mgr.previousTools;
+					const actualTools = pi.getActiveTools();
 					const lines = [
 						`Active: ${active ? active.name : "none"}`,
 						`Model: ${active?.model ?? "default"}`,
-						`Mode tools: ${tools ? tools.join(", ") : "all (unrestricted)"}`,
+						`Mode tools: ${modeTools ? modeTools.join(", ") : "all (unrestricted)"}`,
+						`Active tools: ${actualTools.join(", ")}`,
 						`Previous tools: ${previousTools ? previousTools.join(", ") : "none (unmanaged)"}`,
 						`Previous: ${mgr.previousModeName ?? "none"}`,
 						`Available modes: ${modes.map((m) => m.name).join(", ")}`,
@@ -182,6 +188,22 @@ export default function modesExtension(pi: ExtensionAPI) {
 			},
 		});
 	}
+
+	// --- Restore tools after reload ---
+	// Tool restrictions from setActiveTools() persist across reloads, but
+	// ModeManager state doesn't. If no mode is active after reload, ensure
+	// default tools (especially write/edit) are present.
+	pi.on("session_start", () => {
+		if (!mgr.activeMode) {
+			const current = pi.getActiveTools();
+			const missing = DEFAULT_TOOL_NAMES.filter(
+				(t) => !current.includes(t),
+			);
+			if (missing.length > 0) {
+				pi.setActiveTools([...current, ...missing]);
+			}
+		}
+	});
 
 	// --- System prompt injection + mode switch context ---
 
