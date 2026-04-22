@@ -16,7 +16,14 @@
  * - ↑/↓ or k/j to scroll, q/Esc to dismiss
  */
 
-import { type Message, stream } from "@mariozechner/pi-ai";
+import {
+	type ImageContent,
+	type Message,
+	stream,
+	type TextContent,
+	type ThinkingContent,
+	type ToolCall,
+} from "@mariozechner/pi-ai";
 import {
 	BorderedLoader,
 	type ExtensionAPI,
@@ -45,31 +52,39 @@ Rules:
 
 const MAX_CONTEXT_CHARS = 40_000;
 const MAX_CONTEXT_MESSAGES = 40;
+const HALF_PAGE = 15;
+
+type ContentBlock = TextContent | ThinkingContent | ImageContent | ToolCall;
+
+function blockText(block: ContentBlock): string {
+	switch (block.type) {
+		case "text":
+			return block.text;
+		case "thinking":
+			return block.thinking;
+		case "image":
+		case "toolCall":
+			return "";
+	}
+}
 
 function messageText(msg: Message): string {
-	const content = (msg as { content?: unknown }).content;
-	if (typeof content === "string") return content;
-	if (Array.isArray(content)) {
-		return (
-			content as Array<{
-				type: string;
-				text?: string;
-				thinking?: string;
-			}>
-		)
-			.map((c) => c.text ?? c.thinking ?? "")
-			.join("");
-	}
-	return "";
+	if (typeof msg.content === "string") return msg.content;
+	return msg.content.map(blockText).filter(Boolean).join("\n");
+}
+
+function isMessage(value: unknown): value is Message {
+	if (typeof value !== "object" || value === null) return false;
+	const role = (value as { role?: string }).role;
+	return role === "user" || role === "assistant" || role === "toolResult";
 }
 
 function getSessionMessages(ctx: ExtensionContext): Message[] {
 	const all: Message[] = [];
 	for (const entry of ctx.sessionManager.getBranch()) {
 		if (entry.type !== "message") continue;
-		const role = (entry.message as { role?: string }).role;
-		if (role === "user" || role === "assistant" || role === "toolResult") {
-			all.push(entry.message as Message);
+		if (isMessage(entry.message)) {
+			all.push(entry.message);
 		}
 	}
 
@@ -88,10 +103,7 @@ function getSessionMessages(ctx: ExtensionContext): Message[] {
 	}
 
 	// Never start on an orphaned toolResult — advance to next user message
-	while (
-		cutoff < recent.length &&
-		(recent[cutoff] as { role?: string }).role !== "user"
-	) {
+	while (cutoff < recent.length && recent[cutoff]?.role !== "user") {
 		cutoff++;
 	}
 
@@ -109,11 +121,11 @@ async function pickModel(ctx: ExtensionContext) {
 		const model = ctx.modelRegistry.find(provider, id);
 		if (!model) continue;
 		const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
-		if (auth.ok && auth.apiKey) return { model, auth };
+		if (auth.ok) return { model, auth };
 	}
 	if (ctx.model) {
 		const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model);
-		if (auth.ok && auth.apiKey) return { model: ctx.model, auth };
+		if (auth.ok) return { model: ctx.model, auth };
 	}
 	return null;
 }
