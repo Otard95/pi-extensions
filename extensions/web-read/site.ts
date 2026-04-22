@@ -53,18 +53,29 @@ export class Site {
 	}
 
 	public render(): string {
-		const lines = this.lines
-			.slice(this._offset, (this._offset ?? 0) + this._limit)
-			.map((l) => `${l.n}: ${l.text}`)
-			.join("\n");
+		const start = this._offset ?? 0;
+		const sliced = this.lines.slice(start, start + this._limit);
+		const lines = sliced.map((l) => `${l.n}: ${l.text}`).join("\n");
+		const totalLines = this.lines.length;
+		const shownEnd = start + sliced.length;
+		const remaining = totalLines - shownEnd;
 
-		return [
+		const out = [
 			`Source: ${this.url.href}`,
 			`Cached: ~/${relative(homedir(), this.path)}`,
 			`Title: ${this.title}`,
 			"",
 			lines,
-		].join("\n");
+		];
+
+		if (remaining > 0) {
+			out.push(
+				"",
+				`[Showing lines ${start + 1}-${shownEnd} of ${totalLines}. ${remaining} more lines available. Use offset=${shownEnd + 1} to continue.]`,
+			);
+		}
+
+		return out.join("\n");
 	}
 }
 
@@ -147,14 +158,21 @@ export class SiteMatches {
 		}
 		const matches = this.getMatches();
 		out.push(`${matches.length} matches`, "");
+		const shown = matches.slice(0, this._limit);
 		out.push(
-			matches
-				.slice(0, this._limit)
+			shown
 				.map((m) =>
 					m.map((l) => `${l.match ? ">" : " "} ${l.n}: ${l.text}`).join("\n"),
 				)
 				.join("\n---\n"),
 		);
+
+		if (matches.length > this._limit) {
+			out.push(
+				"",
+				`[Showing ${shown.length} of ${matches.length} match groups. Increase limit to see more.]`,
+			);
+		}
 
 		return out.join("\n");
 	}

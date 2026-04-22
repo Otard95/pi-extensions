@@ -53,7 +53,12 @@ describe("Site", () => {
 	describe("limit", () => {
 		it("limits the number of lines rendered", () => {
 			expect(makeSite("aaa\nbbb\nccc").limit(2).render()).toEqual(
-				header("1: aaa", "2: bbb"),
+				header(
+					"1: aaa",
+					"2: bbb",
+					"",
+					"[Showing lines 1-2 of 3. 1 more lines available. Use offset=3 to continue.]",
+				),
 			);
 		});
 	});
@@ -70,7 +75,14 @@ describe("Site", () => {
 		it("renders a window of lines", () => {
 			expect(
 				makeSite("aaa\nbbb\nccc\nddd\neee").offset(1).limit(2).render(),
-			).toEqual(header("2: bbb", "3: ccc"));
+			).toEqual(
+				header(
+					"2: bbb",
+					"3: ccc",
+					"",
+					"[Showing lines 2-3 of 5. 2 more lines available. Use offset=4 to continue.]",
+				),
+			);
 		});
 	});
 
@@ -188,7 +200,17 @@ describe("SiteMatches", () => {
 					.filter(/aaa|ccc|eee/)
 					.limit(2)
 					.render(),
-			).toEqual(matchHeader("3 matches", "", "> 1: aaa", "---", "> 3: ccc"));
+			).toEqual(
+				matchHeader(
+					"3 matches",
+					"",
+					"> 1: aaa",
+					"---",
+					"> 3: ccc",
+					"",
+					"[Showing 2 of 3 match groups. Increase limit to see more.]",
+				),
+			);
 		});
 	});
 
