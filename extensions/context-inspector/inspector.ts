@@ -61,6 +61,7 @@ export class ContextInspector implements Component {
 	private scrollOffset = 0;
 	private cachedWidth?: number;
 	private cachedLines?: string[];
+	private lastRenderWidth?: number;
 	private theme: Theme;
 	private tui: TUI;
 	private onClose: () => void;
@@ -561,7 +562,12 @@ export class ContextInspector implements Component {
 		for (const s of this.sections) {
 			count++; // header
 			if (s.expanded) {
-				count += s.renderLines(width).length + 1;
+				const contentLines =
+					this.mode === "json"
+						? this.wrap(JSON.stringify(s.rawData, null, 2), width - 4)
+								.length
+						: s.renderLines(width).length;
+				count += contentLines + 1;
 			}
 		}
 		return count;
@@ -618,7 +624,7 @@ export class ContextInspector implements Component {
 			return;
 		}
 
-		const width = this.tui.terminal.columns;
+		const width = this.lastRenderWidth ?? this.tui.terminal.columns;
 
 		if (matchesKey(data, "up") || matchesKey(data, "k")) {
 			if (this.selectedIndex > 0) {
@@ -718,6 +724,8 @@ export class ContextInspector implements Component {
 		if (this.cachedLines && this.cachedWidth === width) {
 			return this.cachedLines;
 		}
+
+		this.lastRenderWidth = width;
 
 		const t = this.theme;
 		const allLines: string[] = [];
