@@ -63,7 +63,7 @@ export async function fetchPage(
 	return writeSiteCache(url, title, markdown);
 }
 
-function normalizeUrl(rawUrl: string): Result<URL> {
+export function normalizeUrl(rawUrl: string): Result<URL> {
 	if (!rawUrl.startsWith("http")) rawUrl = `https://${rawUrl}`;
 	if (!rawUrl.startsWith("https://"))
 		Result.Err(new Error("Only https urls are supported"));

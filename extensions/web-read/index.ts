@@ -1,7 +1,7 @@
 import { type ExtensionAPI, keyHint } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
-import { fetchPage } from "./fetch";
+import { fetchPage, normalizeUrl } from "./fetch";
 
 const WebReadParams = Type.Object({
 	url: Type.String({ description: "The URL to fetch" }),
@@ -36,6 +36,27 @@ export default function (pi: ExtensionAPI) {
 			"Use offset/limit to paginate, pattern to search, or combine them.",
 		].join("\n"),
 		parameters: WebReadParams,
+		renderCall(args, theme, _context) {
+			const normalized = normalizeUrl(args.url ?? "");
+			const clean = normalized.isOk()
+				? normalized.unwrap().host + normalized.unwrap().pathname
+				: (args.url ?? "...").replace(/^https?:\/\//, "");
+			const url = clean.length > 50 ? `${clean.slice(0, 47)}...` : clean;
+			let text = theme.fg("toolTitle", theme.bold("web_read "));
+			text += theme.fg("accent", url);
+
+			const parts: string[] = [];
+			if (args.offset) parts.push(`offset=${args.offset}`);
+			if (args.limit) parts.push(`limit=${args.limit}`);
+			if (args.pattern) parts.push(`/${args.pattern}/`);
+			if (args.context) parts.push(`context=${args.context}`);
+			if (args.refresh) parts.push("refresh");
+			if (parts.length > 0) {
+				text += theme.fg("dim", ` (${parts.join(", ")})`);
+			}
+
+			return new Text(text, 0, 0);
+		},
 		execute: async (_toolCallId, params, _signal, _onUpdate, _ctx) => {
 			const {
 				url,
