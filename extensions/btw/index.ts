@@ -154,7 +154,7 @@ function makeResultPanel(
 		cachedFooter = [
 			"",
 			truncateToWidth("-".repeat(width), width),
-			truncateToWidth("  ↑/↓  scroll    q/Esc  dismiss", width),
+			truncateToWidth("  ↑/↓  scroll    C-u/C-d  half page    q/Esc  dismiss", width),
 		];
 	}
 
@@ -188,6 +188,18 @@ function makeResultPanel(
 				}
 			} else if (matchesKey(data, Key.down) || data === "j") {
 				scrollOffset++;
+				tui.requestRender();
+			} else if (
+				matchesKey(data, Key.pageUp) ||
+				matchesKey(data, Key.ctrl("u"))
+			) {
+				scrollOffset = Math.max(0, scrollOffset - HALF_PAGE);
+				tui.requestRender();
+			} else if (
+				matchesKey(data, Key.pageDown) ||
+				matchesKey(data, Key.ctrl("d"))
+			) {
+				scrollOffset += HALF_PAGE;
 				tui.requestRender();
 			}
 		},
