@@ -36,7 +36,7 @@ import {
 	matchesKey,
 	truncateToWidth,
 } from "@mariozechner/pi-tui";
-import { pickModel } from "../../utils/pick-model.js";
+import { pickModel } from "../../utils/pick-model";
 
 const BTW_SYSTEM_PROMPT = `\
 You are answering a brief side question about an active coding session.

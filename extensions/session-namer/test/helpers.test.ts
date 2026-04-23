@@ -6,7 +6,7 @@ import {
 	sanitizeModelTitle,
 	sentenceCase,
 	truncate,
-} from "../index.js";
+} from "../index";
 
 describe("normalizeWhitespace", () => {
 	it("collapses multiple spaces", () => {

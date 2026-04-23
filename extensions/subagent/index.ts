@@ -26,8 +26,8 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
-import { at } from "../../utils/array/at.js";
-import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.js";
+import { at } from "../../utils/array/at";
+import { type AgentConfig, type AgentScope, discoverAgents } from "./agents";
 
 const MAX_PARALLEL_TASKS = 8;
 const MAX_CONCURRENCY = 4;

@@ -13,7 +13,7 @@ import type {
 	ExtensionAPI,
 	ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
-import { ContextInspector } from "./inspector.js";
+import { ContextInspector } from "./inspector";
 
 export default function contextInspectorExtension(pi: ExtensionAPI) {
 	const openInspector = async (ctx: ExtensionContext) => {

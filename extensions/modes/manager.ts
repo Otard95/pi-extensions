@@ -9,7 +9,7 @@ import type {
 	ExtensionAPI,
 	ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
-import type { ModeConfig } from "./modes.js";
+import type { ModeConfig } from "./modes";
 
 export class ModeManager {
 	activeMode: ModeConfig | null = null;

@@ -31,13 +31,13 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { getAgentDir } from "@mariozechner/pi-coding-agent";
 import type { KeyId } from "@mariozechner/pi-tui";
 import { codingTools } from "@mariozechner/pi-coding-agent";
-import { ModeManager } from "./manager.js";
-import { loadModes, type ModeConfig } from "./modes.js";
+import { ModeManager } from "./manager";
+import { loadModes, type ModeConfig } from "./modes";
 
 /** Default tool names that should always be present when no mode is active. */
 const DEFAULT_TOOL_NAMES = codingTools.map((t) => t.name);
 
-export type { ModeConfig } from "./modes.js";
+export type { ModeConfig } from "./modes";
 
 function loadKeybindings(): Record<string, string | string[]> {
 	const kbPath = path.join(getAgentDir(), "keybindings.json");
