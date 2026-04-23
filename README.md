@@ -8,11 +8,13 @@ This package bundles custom extensions for the [pi coding agent](https://github.
 
 - **[filesystem-tools](extensions/filesystem-tools/README.md)** — Activates pi's built-in `grep`, `find`, and `ls` tools in the default coding session
 - **[guards](extensions/guards/README.md)** — Blocks bash write commands when write/edit tools are disabled, nudges toward dedicated tools, blocks overly broad grep/find paths
+- **[btw](extensions/btw/README.md)** — Ask a quick side question without polluting session history
 - **[load-skill](extensions/load-skill/README.md)** — Registers a `load_skill` tool for the LLM to load skill content by name
 - **[modes](extensions/modes/README.md)** — Custom modes defined as markdown files with `/mode` command and `Ctrl+}`/`Ctrl+{` cycling
 - **[semantic-compaction](extensions/semantic-compaction/README.md)** — `/semantic-compact` command that summarizes tool call groups using Haiku
 - **[subagent](extensions/subagent/README.md)** — Delegate tasks to isolated pi processes (single, parallel, chain modes)
 - **[searxng](extensions/searxng/README.md)** — Web search via self-hosted SearXNG instance
+- **[session-namer](extensions/session-namer/README.md)** — Auto-name sessions after the first turn using a cheap model, with `/name-auto` for on-demand renaming
 - **[web-read](extensions/web-read/README.md)** — Fetch web pages as markdown with pagination and regex search
 
 ## Installation
