@@ -42,8 +42,8 @@ export function writeSiteCache(
 	const path = getCachePath(url);
 	const frontmatter = [
 		"---",
-		`title: ${title}`,
-		`url: ${url.href}`,
+		`title: ${JSON.stringify(title)}`,
+		`url: ${JSON.stringify(url.href)}`,
 		"---",
 	].join("\n");
 
