@@ -34,9 +34,9 @@
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { readOnlyTools } from "@mariozechner/pi-coding-agent";
+import { createReadOnlyTools } from "@mariozechner/pi-coding-agent";
 
-const TOOLS_TO_ACTIVATE = readOnlyTools.map((t) => t.name);
+const TOOLS_TO_ACTIVATE = createReadOnlyTools(".").map((t) => t.name);
 
 export default function filesystemToolsExtension(pi: ExtensionAPI) {
 	// Fires on startup, /reload, /new, /resume, /fork

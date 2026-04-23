@@ -28,14 +28,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import * as path from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { getAgentDir } from "@mariozechner/pi-coding-agent";
+import { createCodingTools, getAgentDir } from "@mariozechner/pi-coding-agent";
 import type { KeyId } from "@mariozechner/pi-tui";
-import { codingTools } from "@mariozechner/pi-coding-agent";
 import { ModeManager } from "./manager";
 import { loadModes, type ModeConfig } from "./modes";
 
 /** Default tool names that should always be present when no mode is active. */
-const DEFAULT_TOOL_NAMES = codingTools.map((t) => t.name);
+const DEFAULT_TOOL_NAMES = createCodingTools(".").map((t) => t.name);
 
 export type { ModeConfig } from "./modes";
 
@@ -196,9 +195,7 @@ export default function modesExtension(pi: ExtensionAPI) {
 	pi.on("session_start", () => {
 		if (!mgr.activeMode) {
 			const current = pi.getActiveTools();
-			const missing = DEFAULT_TOOL_NAMES.filter(
-				(t) => !current.includes(t),
-			);
+			const missing = DEFAULT_TOOL_NAMES.filter((t) => !current.includes(t));
 			if (missing.length > 0) {
 				pi.setActiveTools([...current, ...missing]);
 			}
