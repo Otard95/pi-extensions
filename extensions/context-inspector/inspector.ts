@@ -564,8 +564,7 @@ export class ContextInspector implements Component {
 			if (s.expanded) {
 				const contentLines =
 					this.mode === "json"
-						? this.wrap(JSON.stringify(s.rawData, null, 2), width - 4)
-								.length
+						? this.wrap(JSON.stringify(s.rawData, null, 2), width - 4).length
 						: s.renderLines(width).length;
 				count += contentLines + 1;
 			}
