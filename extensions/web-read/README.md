@@ -24,3 +24,30 @@ Fetches full page (from internet or cache), converts to markdown, then filters o
 | `pattern` | No       | Regex pattern to search for in the page            |
 | `context` | No       | Number of context lines around each match (default: 0) |
 | `refresh` | No       | Bypass cache and re-fetch the page                 |
+
+## HTML Filtering
+
+Elements that never produce useful markdown are always stripped before conversion:
+`style`, `script`, `noscript`, `svg`, `canvas`, `template`, `iframe`, `object`, `embed`.
+
+### Optional stripping
+
+Some structural elements can be toggled via `settings.json`:
+
+```json
+{
+  "web-read": {
+    "strip": {
+      "nav": false,
+      "header": false,
+      "footer": true
+    }
+  }
+}
+```
+
+| Key      | Strips        | Default | Notes                                        |
+|----------|---------------|---------|----------------------------------------------|
+| `nav`    | `<nav>`       | `false` | Useful on docs sites (TOCs, sidebars)        |
+| `header` | `<header>`    | `false` | Often wraps nav                              |
+| `footer` | `<footer>`    | `true`  | Usually boilerplate (copyright, legal, etc.) |

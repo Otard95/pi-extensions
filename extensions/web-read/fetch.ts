@@ -1,16 +1,83 @@
 /**
  * Fetch a URL, convert HTML to markdown via turndown, and cache the result.
  */
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { getAgentDir } from "@mariozechner/pi-coding-agent";
 import TurndownService from "turndown";
 import { Option } from "../../utils/monad/option";
 import { Result } from "../../utils/monad/result";
 import { getSiteCache, writeSiteCache } from "./cache";
 import type { Site } from "./site";
 
-const turndown = new TurndownService({
-	headingStyle: "atx",
-	codeBlockStyle: "fenced",
-});
+/** Elements that never produce useful markdown and are always stripped. */
+const ALWAYS_REMOVE = [
+	"style",
+	"script",
+	"noscript",
+	"svg",
+	"canvas",
+	"template",
+	"iframe",
+	"object",
+	"embed",
+];
+
+/** Elements that can optionally be stripped via settings, with defaults. */
+const OPTIONAL_REMOVE: Record<string, { tags: string[]; default: boolean }> = {
+	nav: { tags: ["nav"], default: false },
+	header: { tags: ["header"], default: false },
+	footer: { tags: ["footer"], default: true },
+};
+
+function loadSettings(): Record<string, unknown> {
+	const settingsPath = path.join(getAgentDir(), "settings.json");
+	if (!existsSync(settingsPath)) return {};
+	try {
+		const raw = JSON.parse(readFileSync(settingsPath, "utf-8"));
+		if (typeof raw === "object" && raw !== null && !Array.isArray(raw))
+			return raw;
+	} catch {}
+	return {};
+}
+
+function getWebReadSettings(): Record<string, unknown> {
+	const settings = loadSettings();
+	const section = settings["web-read"];
+	if (
+		typeof section === "object" &&
+		section !== null &&
+		!Array.isArray(section)
+	)
+		return section as Record<string, unknown>;
+	return {};
+}
+
+function createTurndown(): TurndownService {
+	const td = new TurndownService({
+		headingStyle: "atx",
+		codeBlockStyle: "fenced",
+	});
+
+	const remove = [...ALWAYS_REMOVE];
+
+	const settings = getWebReadSettings();
+	const strip = settings["strip"];
+	const stripObj =
+		typeof strip === "object" && strip !== null && !Array.isArray(strip)
+			? (strip as Record<string, unknown>)
+			: {};
+
+	for (const [key, opt] of Object.entries(OPTIONAL_REMOVE)) {
+		const val = stripObj[key];
+		const enabled = typeof val === "boolean" ? val : opt.default;
+		if (enabled) remove.push(...opt.tags);
+	}
+
+	td.remove(remove);
+	return td;
+}
+
 const fetchOpts: RequestInit = {
 	headers: {
 		Accept: "text/html,application/xhtml+xml,*/*",
@@ -58,7 +125,7 @@ export async function fetchPage(
 
 	// Convert to markdown
 	const title = extractTitle(html);
-	const markdown = turndown.turndown(html);
+	const markdown = createTurndown().turndown(html);
 
 	return writeSiteCache(url, title, markdown);
 }
