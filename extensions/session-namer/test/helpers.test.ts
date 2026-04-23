@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
 	buildSessionName,
+	heuristicTask,
 	normalizeWhitespace,
 	sanitizeModelTitle,
 	sentenceCase,
-	stripLeadingFillers,
-	summarizeFreeformTask,
 	truncate,
 } from "../index.js";
 
@@ -53,75 +52,6 @@ describe("truncate", () => {
 	});
 });
 
-describe("stripLeadingFillers", () => {
-	it("strips 'can you help me'", () => {
-		expect(stripLeadingFillers("can you help me fix the bug")).toBe(
-			"fix the bug",
-		);
-	});
-
-	it("strips 'please can you'", () => {
-		expect(stripLeadingFillers("please can you fix the bug")).toBe(
-			"fix the bug",
-		);
-	});
-
-	it("strips 'let's'", () => {
-		expect(stripLeadingFillers("let's fix the bug")).toBe("fix the bug");
-	});
-
-	it("strips 'let's think about how to'", () => {
-		expect(stripLeadingFillers("let's think about how to fix the bug")).toBe(
-			"fix the bug",
-		);
-	});
-
-	it("strips 'I need to'", () => {
-		expect(stripLeadingFillers("I need to fix the bug")).toBe("fix the bug");
-	});
-
-	it("preserves text without fillers", () => {
-		expect(stripLeadingFillers("Fix the auth redirect")).toBe(
-			"Fix the auth redirect",
-		);
-	});
-});
-
-describe("summarizeFreeformTask", () => {
-	it("extracts first sentence", () => {
-		expect(
-			summarizeFreeformTask("Fix the login bug. Also check the tests."),
-		).toBe("Fix the login bug");
-	});
-
-	it("strips fillers and trailing punctuation", () => {
-		expect(summarizeFreeformTask("Can you help me fix the auth?")).toBe(
-			"Fix the auth",
-		);
-	});
-
-	it("caps at 8 words", () => {
-		const result = summarizeFreeformTask(
-			"one two three four five six seven eight nine ten",
-		);
-		expect(result?.split(" ").length).toBeLessThanOrEqual(8);
-	});
-
-	it("returns null for empty input", () => {
-		expect(summarizeFreeformTask("")).toBeNull();
-	});
-
-	it("strips leading 'to'", () => {
-		expect(summarizeFreeformTask("to fix the bug")).toBe("Fix the bug");
-	});
-
-	it("handles multiline input by taking first line", () => {
-		expect(summarizeFreeformTask("Fix the bug\nAlso check tests")).toBe(
-			"Fix the bug",
-		);
-	});
-});
-
 describe("sanitizeModelTitle", () => {
 	it("strips surrounding quotes", () => {
 		expect(sanitizeModelTitle('"Fix auth redirect"')).toBe("Fix auth redirect");
@@ -147,6 +77,41 @@ describe("sanitizeModelTitle", () => {
 		expect(sanitizeModelTitle("  Fix   auth  redirect  ")).toBe(
 			"Fix auth redirect",
 		);
+	});
+});
+
+describe("heuristicTask", () => {
+	it("extracts first sentence", () => {
+		expect(heuristicTask("Fix the login bug. Also check the tests.")).toBe(
+			"Fix the login bug",
+		);
+	});
+
+	it("caps at 8 words", () => {
+		const result = heuristicTask(
+			"one two three four five six seven eight nine ten",
+		);
+		expect(result.split(" ").length).toBeLessThanOrEqual(8);
+	});
+
+	it("returns default for empty input", () => {
+		expect(heuristicTask("")).toBe("General work");
+	});
+
+	it("strips trailing punctuation", () => {
+		expect(heuristicTask("Fix the bug!")).toBe("Fix the bug");
+	});
+
+	it("takes first line of multiline input", () => {
+		expect(heuristicTask("Fix the bug\nAlso check tests")).toBe("Fix the bug");
+	});
+
+	it("sentence-cases the result", () => {
+		expect(heuristicTask("fix the bug")).toBe("Fix the bug");
+	});
+
+	it("returns default for whitespace-only input", () => {
+		expect(heuristicTask("   ")).toBe("General work");
 	});
 });
 

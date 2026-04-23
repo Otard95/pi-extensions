@@ -57,49 +57,6 @@ export function truncate(text: string, maxLength: number): string {
 	return `${clipped}…`;
 }
 
-export function stripLeadingFillers(text: string): string {
-	const patterns = [
-		/^(?:please\s+)?can you\s+(?:help me\s+)?/i,
-		/^(?:please\s+)?could you\s+(?:help me\s+)?/i,
-		/^(?:please\s+)?would you\s+(?:help me\s+)?/i,
-		/^(?:please\s+)?help me\s+(?:to\s+)?/i,
-		/^(?:please\s+)?i need to\s+/i,
-		/^(?:please\s+)?i want to\s+/i,
-		/^(?:please\s+)?we need to\s+/i,
-		/^(?:please\s+)?we should\s+/i,
-		/^(?:please\s+)?let'?s\s+think about\s+(?:how\s+(?:we|to)\s+)?/i,
-		/^(?:please\s+)?let'?s\s+(?:work on|figure out|plan|debug|investigate)\s+/i,
-		/^(?:please\s+)?let'?s\s+/i,
-	];
-
-	let current = text.trim();
-	for (const pattern of patterns) {
-		current = current.replace(pattern, "").trim();
-	}
-	return current;
-}
-
-export function summarizeFreeformTask(text: string): string | null {
-	let summary = text.trim();
-	if (!summary) return null;
-
-	summary = summary.split(/\n+/)[0] ?? summary;
-	summary = summary.split(/(?<=[.!?])\s+/)[0] ?? summary;
-	summary = normalizeWhitespace(summary);
-	summary = stripLeadingFillers(summary);
-	summary = summary.replace(/^to\s+/i, "").trim();
-	summary = summary.replace(/[.!?]+$/, "").trim();
-
-	if (!summary) return null;
-
-	const words = summary.split(" ").filter(Boolean);
-	if (words.length > 8) {
-		summary = words.slice(0, 8).join(" ");
-	}
-
-	return sentenceCase(summary);
-}
-
 export function sanitizeModelTitle(text: string): string | null {
 	const normalized = normalizeWhitespace(text)
 		.replace(/^(?:["'\x60]+)|(?:["'\x60]+)$/g, "")
@@ -117,6 +74,29 @@ export function buildSessionName(cwd: string, task: string): string {
 		MAX_SESSION_NAME_LENGTH - prefix.length,
 	);
 	return `${prefix}${truncate(task || DEFAULT_TASK, availableTaskLength)}`;
+}
+
+/**
+ * Simple heuristic fallback: first line, first sentence, max 8 words.
+ * Only used when no model is available.
+ */
+export function heuristicTask(text: string): string {
+	let summary = text.trim();
+	if (!summary) return DEFAULT_TASK;
+
+	summary = summary.split(/\n+/)[0] ?? summary;
+	summary = summary.split(/(?<=[.!?])\s+/)[0] ?? summary;
+	summary = normalizeWhitespace(summary);
+	summary = summary.replace(/[.!?]+$/, "").trim();
+
+	if (!summary) return DEFAULT_TASK;
+
+	const words = summary.split(" ").filter(Boolean);
+	if (words.length > 8) {
+		summary = words.slice(0, 8).join(" ");
+	}
+
+	return sentenceCase(summary);
 }
 
 // ── context extraction ────────────────────────────────────────────────────────
@@ -206,10 +186,6 @@ async function generateTaskTitle(
 	return sanitizeModelTitle(raw);
 }
 
-function getHeuristicTask(text: string): string | null {
-	return summarizeFreeformTask(text) ?? DEFAULT_TASK;
-}
-
 // ── extension ─────────────────────────────────────────────────────────────────
 
 export default function sessionNamerExtension(pi: ExtensionAPI) {
@@ -228,8 +204,7 @@ export default function sessionNamerExtension(pi: ExtensionAPI) {
 			}
 			return null;
 		});
-		const finalTask = task ?? getHeuristicTask(sourceText);
-		if (!finalTask) return;
+		const finalTask = task ?? heuristicTask(sourceText);
 		if (pi.getSessionName()) return;
 
 		pi.setSessionName(buildSessionName(ctx.cwd, finalTask));
@@ -255,11 +230,7 @@ export default function sessionNamerExtension(pi: ExtensionAPI) {
 				);
 				return null;
 			});
-			const finalTask = task ?? getHeuristicTask(sourceText);
-			if (!finalTask) {
-				ctx.ui.notify("Could not generate a session name", "warning");
-				return;
-			}
+			const finalTask = task ?? heuristicTask(sourceText);
 
 			const name = buildSessionName(ctx.cwd, finalTask);
 			pi.setSessionName(name);
