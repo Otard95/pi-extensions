@@ -36,6 +36,7 @@ import {
 	matchesKey,
 	truncateToWidth,
 } from "@mariozechner/pi-tui";
+import { pickModel } from "../../utils/pick-model.js";
 
 const BTW_SYSTEM_PROMPT = `\
 You are answering a brief side question about an active coding session.
@@ -110,25 +111,7 @@ function getSessionMessages(ctx: ExtensionContext): Message[] {
 	return recent.slice(cutoff);
 }
 
-async function pickModel(ctx: ExtensionContext) {
-	const preferred: Array<[string, string]> = [
-		["anthropic", "claude-haiku-4-5"],
-		["google", "gemini-2.5-flash"],
-		["openai", "gpt-4.1-mini"],
-		["openai", "gpt-4o-mini"],
-	];
-	for (const [provider, id] of preferred) {
-		const model = ctx.modelRegistry.find(provider, id);
-		if (!model) continue;
-		const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
-		if (auth.ok) return { model, auth };
-	}
-	if (ctx.model) {
-		const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model);
-		if (auth.ok) return { model: ctx.model, auth };
-	}
-	return null;
-}
+// pickModel imported from utils/pick-model.ts
 
 // ── scrollable result panel ───────────────────────────────────────────────────
 
@@ -154,7 +137,10 @@ function makeResultPanel(
 		cachedFooter = [
 			"",
 			truncateToWidth("-".repeat(width), width),
-			truncateToWidth("  ↑/↓  scroll    C-u/C-d  half page    q/Esc  dismiss", width),
+			truncateToWidth(
+				"  ↑/↓  scroll    C-u/C-d  half page    q/Esc  dismiss",
+				width,
+			),
 		];
 	}
 
