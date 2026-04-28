@@ -60,11 +60,11 @@ const settings = loadSettings<VoiceInputSettings>("voiceInput", VoiceInputSchema
 - [ ] Add tests (optional)
 
 **Implementation notes:**
-- Returns `Result<T, Error>` instead of `T` for proper error handling
-- Callers use `.unwrapOr({})` for default fallback or handle errors explicitly
+- Returns `Result<T, Error>` - no assumptions about defaults
+- Callers must explicitly handle missing config via `.unwrapOr(default)`
+- Errors for: missing file, missing key, invalid type, schema validation
 - Schema validation errors include detailed path/message information
-- Missing file or undefined key returns empty object (not an error)
-- Invalid JSON or wrong types throw descriptive errors
+- No silent failures - all error cases return `Err()`
 
 **Related:**
 - TypeBox already available: `devDependencies` includes `@sinclair/typebox`

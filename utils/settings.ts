@@ -15,11 +15,11 @@ import { Result } from "./monad/result.js";
  * Load typed settings from settings.json
  *
  * Reads `~/.config/pi/settings.json` or `.pi/settings.json` and extracts
- * the specified key. Optionally validates against a TypeBox schema.
+ * the specified key. Validates against a TypeBox schema if provided.
  *
  * @param key - Top-level key in settings.json (e.g., "voiceInput", "searxng")
  * @param schema - Optional TypeBox schema for validation
- * @returns Result with parsed settings or error
+ * @returns Result<T, Error> - Ok(settings) on success, Err(error) on failure
  *
  * @example
  * ```ts
@@ -32,9 +32,13 @@ import { Result } from "./monad/result.js";
  *
  * type VoiceInputSettings = Static<typeof VoiceInputSchema>;
  *
- * // With default fallback
+ * // Use default empty object if not configured
  * const settings = loadSettings<VoiceInputSettings>("voiceInput", VoiceInputSchema)
  *   .unwrapOr({});
+ *
+ * // Or provide custom defaults
+ * const settings = loadSettings<VoiceInputSettings>("voiceInput", VoiceInputSchema)
+ *   .unwrapOr({ modelPath: "/default/path.bin" });
  *
  * // Or handle errors explicitly
  * const result = loadSettings<VoiceInputSettings>("voiceInput", VoiceInputSchema);
@@ -42,6 +46,15 @@ import { Result } from "./monad/result.js";
  *   console.error("Settings error:", result.unwrapErr());
  * }
  * ```
+ *
+ * @remarks
+ * Returns `Err` if:
+ * - Settings file doesn't exist
+ * - Key not found in settings.json
+ * - Value is not an object
+ * - Schema validation fails
+ *
+ * Callers should use `.unwrapOr(defaultValue)` to handle missing config gracefully.
  */
 export function loadSettings<T extends Record<string, unknown>>(
 	key: string,
@@ -50,9 +63,9 @@ export function loadSettings<T extends Record<string, unknown>>(
 	return Result.try(() => {
 		const settingsPath = join(getAgentDir(), "settings.json");
 
-		// Return empty if file doesn't exist (not an error)
+		// File doesn't exist
 		if (!existsSync(settingsPath)) {
-			return {} as T;
+			throw new Error(`Settings file not found: ${settingsPath}`);
 		}
 
 		// Parse settings.json
@@ -71,9 +84,9 @@ export function loadSettings<T extends Record<string, unknown>>(
 		// Extract key
 		const value = parsed[key];
 
-		// Key doesn't exist (not an error - return empty)
+		// Key doesn't exist
 		if (value === undefined) {
-			return {} as T;
+			throw new Error(`Key "${key}" not found in settings.json`);
 		}
 
 		// Validate value is an object
