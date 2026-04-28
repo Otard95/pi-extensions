@@ -6,7 +6,7 @@ import { type Static, Type } from "@sinclair/typebox";
 import TurndownService from "turndown";
 import { Option } from "../../utils/monad/option";
 import { Result } from "../../utils/monad/result";
-import { loadSettings as loadSettingsUtil } from "../../utils/settings.js";
+import { loadSettings } from "../../utils/settings.js";
 import { getSiteCache, writeSiteCache } from "./cache";
 import type { Site } from "./site";
 
@@ -42,11 +42,11 @@ const WebReadSchema = Type.Object({
 
 type WebReadSettings = Static<typeof WebReadSchema>;
 
-function getWebReadSettings(): WebReadSettings {
-	return loadSettingsUtil<WebReadSettings>("web-read", WebReadSchema).unwrapOr(
-		{},
-	);
-}
+// Load and cache settings once at module load
+const WEB_READ_SETTINGS = loadSettings<WebReadSettings>(
+	"web-read",
+	WebReadSchema,
+).unwrapOr({});
 
 function createTurndown(): TurndownService {
 	const td = new TurndownService({
@@ -56,8 +56,7 @@ function createTurndown(): TurndownService {
 
 	const remove = [...ALWAYS_REMOVE];
 
-	const settings = getWebReadSettings();
-	const strip = settings.strip || {};
+	const strip = WEB_READ_SETTINGS.strip || {};
 
 	for (const [key, opt] of Object.entries(OPTIONAL_REMOVE)) {
 		const val = strip[key as keyof typeof strip];

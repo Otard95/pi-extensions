@@ -18,7 +18,7 @@ import { Text } from "@mariozechner/pi-tui";
 import { type Static, Type as T } from "@sinclair/typebox";
 import { at } from "../../utils/array/at";
 import { resolveValue } from "../../utils/secret";
-import { loadSettings as loadSettingsUtil } from "../../utils/settings.js";
+import { loadSettings } from "../../utils/settings.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,10 +54,13 @@ export default function searxngExtension(pi: ExtensionAPI) {
 
 	type SearxngSettings = Static<typeof SearxngSchema>;
 
+	const SEARXNG_SETTINGS = loadSettings<SearxngSettings>(
+		"searxng",
+		SearxngSchema,
+	).unwrapOr({});
+
 	function getSearxngSettings(): SearxngSettings {
-		return loadSettingsUtil<SearxngSettings>("searxng", SearxngSchema).unwrapOr(
-			{},
-		);
+		return SEARXNG_SETTINGS;
 	}
 
 	let cachedAuth: string | undefined;

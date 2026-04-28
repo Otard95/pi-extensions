@@ -30,7 +30,7 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import { type Static, Type } from "@sinclair/typebox";
 import { minimatch } from "minimatch";
-import { loadSettings as loadSettingsUtil } from "../../utils/settings.js";
+import { loadSettings } from "../../utils/settings.js";
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
@@ -40,15 +40,20 @@ const ProtectedFilesSchema = Type.Object({
 
 type ProtectedFilesSettings = Static<typeof ProtectedFilesSchema>;
 
-function getPatterns(): string[] {
-	const settings = loadSettingsUtil<ProtectedFilesSettings>(
-		"protected-files",
-		ProtectedFilesSchema,
-	).unwrapOr({ patterns: [] });
+// Load and cache patterns once at module load
+const PROTECTED_PATTERNS = loadSettings<ProtectedFilesSettings>(
+	"protected-files",
+	ProtectedFilesSchema,
+)
+	.map((settings) =>
+		settings.patterns
+			.filter((p) => p.length > 0)
+			.map((p) => (p.startsWith("**/") || p.startsWith("/") ? p : `**/${p}`)),
+	)
+	.unwrapOr([]);
 
-	return settings.patterns
-		.filter((p) => p.length > 0)
-		.map((p) => (p.startsWith("**/") || p.startsWith("/") ? p : `**/${p}`));
+function getPatterns(): string[] {
+	return PROTECTED_PATTERNS;
 }
 
 // ─── Matching ─────────────────────────────────────────────────────────────────
