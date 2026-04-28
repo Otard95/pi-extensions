@@ -1,12 +1,12 @@
 /**
  * Fetch a URL, convert HTML to markdown via turndown, and cache the result.
  */
-import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
-import { getAgentDir } from "@mariozechner/pi-coding-agent";
+
+import { type Static, Type } from "@sinclair/typebox";
 import TurndownService from "turndown";
 import { Option } from "../../utils/monad/option";
 import { Result } from "../../utils/monad/result";
+import { loadSettings as loadSettingsUtil } from "../../utils/settings.js";
 import { getSiteCache, writeSiteCache } from "./cache";
 import type { Site } from "./site";
 
@@ -30,27 +30,22 @@ const OPTIONAL_REMOVE: Record<string, { tags: string[]; default: boolean }> = {
 	footer: { tags: ["footer"], default: true },
 };
 
-function loadSettings(): Record<string, unknown> {
-	const settingsPath = path.join(getAgentDir(), "settings.json");
-	if (!existsSync(settingsPath)) return {};
-	try {
-		const raw = JSON.parse(readFileSync(settingsPath, "utf-8"));
-		if (typeof raw === "object" && raw !== null && !Array.isArray(raw))
-			return raw;
-	} catch {}
-	return {};
-}
+const WebReadSchema = Type.Object({
+	strip: Type.Optional(
+		Type.Object({
+			nav: Type.Optional(Type.Boolean()),
+			header: Type.Optional(Type.Boolean()),
+			footer: Type.Optional(Type.Boolean()),
+		}),
+	),
+});
 
-function getWebReadSettings(): Record<string, unknown> {
-	const settings = loadSettings();
-	const section = settings["web-read"];
-	if (
-		typeof section === "object" &&
-		section !== null &&
-		!Array.isArray(section)
-	)
-		return section as Record<string, unknown>;
-	return {};
+type WebReadSettings = Static<typeof WebReadSchema>;
+
+function getWebReadSettings(): WebReadSettings {
+	return loadSettingsUtil<WebReadSettings>("web-read", WebReadSchema).unwrapOr(
+		{},
+	);
 }
 
 function createTurndown(): TurndownService {
@@ -62,14 +57,10 @@ function createTurndown(): TurndownService {
 	const remove = [...ALWAYS_REMOVE];
 
 	const settings = getWebReadSettings();
-	const strip = settings["strip"];
-	const stripObj =
-		typeof strip === "object" && strip !== null && !Array.isArray(strip)
-			? (strip as Record<string, unknown>)
-			: {};
+	const strip = settings.strip || {};
 
 	for (const [key, opt] of Object.entries(OPTIONAL_REMOVE)) {
-		const val = stripObj[key];
+		const val = strip[key as keyof typeof strip];
 		const enabled = typeof val === "boolean" ? val : opt.default;
 		if (enabled) remove.push(...opt.tags);
 	}

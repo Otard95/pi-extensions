@@ -22,38 +22,32 @@
  * so that e.g. `*.env` matches `.env`, `config/.env`, `a/b/c/.env`, etc.
  */
 
-import { existsSync, readFileSync } from "node:fs";
-import path, { relative, resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import {
 	type ExtensionAPI,
-	getAgentDir,
 	isToolCallEventType,
 	type ToolCallEvent,
 } from "@mariozechner/pi-coding-agent";
+import { type Static, Type } from "@sinclair/typebox";
 import { minimatch } from "minimatch";
+import { loadSettings as loadSettingsUtil } from "../../utils/settings.js";
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
-function loadSettings(): Record<string, unknown> {
-	const settingsPath = path.join(getAgentDir(), "settings.json");
-	if (!existsSync(settingsPath)) return {};
-	try {
-		const raw = JSON.parse(readFileSync(settingsPath, "utf-8"));
-		if (typeof raw === "object" && raw !== null && !Array.isArray(raw))
-			return raw;
-	} catch {}
-	return {};
-}
+const ProtectedFilesSchema = Type.Object({
+	patterns: Type.Array(Type.String()),
+});
+
+type ProtectedFilesSettings = Static<typeof ProtectedFilesSchema>;
 
 function getPatterns(): string[] {
-	const settings = loadSettings();
-	const section = settings["protected-files"];
-	if (typeof section !== "object" || section === null || Array.isArray(section))
-		return [];
-	const patterns = (section as Record<string, unknown>)["patterns"];
-	if (!Array.isArray(patterns)) return [];
-	return patterns
-		.filter((p): p is string => typeof p === "string" && p.length > 0)
+	const settings = loadSettingsUtil<ProtectedFilesSettings>(
+		"protected-files",
+		ProtectedFilesSchema,
+	).unwrapOr({ patterns: [] });
+
+	return settings.patterns
+		.filter((p) => p.length > 0)
 		.map((p) => (p.startsWith("**/") || p.startsWith("/") ? p : `**/${p}`));
 }
 
