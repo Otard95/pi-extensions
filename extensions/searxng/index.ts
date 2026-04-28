@@ -166,6 +166,16 @@ export default function searxngExtension(pi: ExtensionAPI) {
 				}),
 			),
 		}),
+		renderCall(args, theme) {
+			const query = args.query ?? "";
+			const truncated = query.length > 60 ? `${query.slice(0, 57)}...` : query;
+			let text = theme.fg("toolTitle", theme.bold("web_search "));
+			text += theme.fg("accent", `"${truncated}"`);
+			if (args.max_results) {
+				text += theme.fg("muted", ` (max: ${args.max_results})`);
+			}
+			return new Text(text, 0, 0);
+		},
 
 		async execute(_toolCallId, params, signal, onUpdate, _ctx) {
 			const max = params.max_results ?? 5;
