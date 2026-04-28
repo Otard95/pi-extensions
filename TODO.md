@@ -1,8 +1,8 @@
 # Pi Extensions - TODO
 
-## Shared Utilities
+## Completed
 
-### Settings Management Utility
+### ✅ Settings Management Utility (2026-04-28)
 
 **Current state:**
 - Multiple extensions duplicate `loadSettings()` logic:
@@ -50,13 +50,21 @@ const settings = loadSettings<VoiceInputSettings>("voiceInput", VoiceInputSchema
 - Consistent error handling across extensions
 - Already have `@sinclair/typebox` in devDependencies
 
-**Tasks:**
-- [ ] Create `utils/settings.ts`
-- [ ] Implement generic `loadSettings<T>()` with TypeBox validation
-- [ ] Migrate `searxng` extension
-- [ ] Migrate `voice-input` extension
-- [ ] Document in README
-- [ ] Add tests (optional but recommended)
+**Completed tasks:**
+- [x] Create `utils/settings.ts`
+- [x] Implement generic `loadSettings<T>()` with TypeBox validation
+- [x] Use Result monad for explicit error handling (no silent failures)
+- [x] Migrate `searxng` extension
+- [x] Migrate `voice-input` extension
+- [ ] Document in README (pending)
+- [ ] Add tests (optional)
+
+**Implementation notes:**
+- Returns `Result<T, Error>` instead of `T` for proper error handling
+- Callers use `.unwrapOr({})` for default fallback or handle errors explicitly
+- Schema validation errors include detailed path/message information
+- Missing file or undefined key returns empty object (not an error)
+- Invalid JSON or wrong types throw descriptive errors
 
 **Related:**
 - TypeBox already available: `devDependencies` includes `@sinclair/typebox`

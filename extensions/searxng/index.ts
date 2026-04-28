@@ -12,17 +12,13 @@
  *   2. "searxng.authorization" in settings.json (supports "pass:" prefix)
  */
 
-import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
 import { Type } from "@mariozechner/pi-ai";
-import {
-	type ExtensionAPI,
-	getAgentDir,
-	keyHint,
-} from "@mariozechner/pi-coding-agent";
+import { type ExtensionAPI, keyHint } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
+import { type Static, Type as T } from "@sinclair/typebox";
 import { at } from "../../utils/array/at";
 import { resolveValue } from "../../utils/secret";
+import { loadSettings as loadSettingsUtil } from "../../utils/settings.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,27 +46,18 @@ const MAX_SNIPPET_LEN = 180;
 export default function searxngExtension(pi: ExtensionAPI) {
 	// ── Helpers ──────────────────────────────────────────────────────────────
 
-	function loadSettings(): Record<string, unknown> {
-		const settingsPath = path.join(getAgentDir(), "settings.json");
-		if (!existsSync(settingsPath)) return {};
-		try {
-			const raw = JSON.parse(readFileSync(settingsPath, "utf-8"));
-			if (typeof raw === "object" && raw !== null && !Array.isArray(raw))
-				return raw;
-		} catch {}
-		return {};
-	}
+	// Settings schema
+	const SearxngSchema = T.Object({
+		url: T.Optional(T.String()),
+		authorization: T.Optional(T.String()),
+	});
 
-	function getSearxngSettings(): Record<string, unknown> {
-		const settings = loadSettings();
-		const searxng = settings["searxng"];
-		if (
-			typeof searxng === "object" &&
-			searxng !== null &&
-			!Array.isArray(searxng)
-		)
-			return searxng as Record<string, unknown>;
-		return {};
+	type SearxngSettings = Static<typeof SearxngSchema>;
+
+	function getSearxngSettings(): SearxngSettings {
+		return loadSettingsUtil<SearxngSettings>("searxng", SearxngSchema).unwrapOr(
+			{},
+		);
 	}
 
 	let cachedAuth: string | undefined;
@@ -79,16 +66,15 @@ export default function searxngExtension(pi: ExtensionAPI) {
 	function getBaseUrl(): string | undefined {
 		if (process.env[ENV_URL]) return process.env[ENV_URL];
 		const s = getSearxngSettings();
-		if (typeof s["url"] === "string" && s["url"]) return s["url"];
-		return undefined;
+		return s.url || undefined;
 	}
 
 	async function getAuthorization(): Promise<string | undefined> {
 		if (process.env[ENV_AUTH]) return process.env[ENV_AUTH];
 		if (authResolved) return cachedAuth;
 		const s = getSearxngSettings();
-		if (typeof s["authorization"] === "string" && s["authorization"]) {
-			cachedAuth = await resolveValue(s["authorization"]);
+		if (s.authorization) {
+			cachedAuth = await resolveValue(s.authorization);
 		}
 		authResolved = true;
 		return cachedAuth;

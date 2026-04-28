@@ -1,45 +1,33 @@
 /**
  * Settings Management
  *
- * Loads voice input configuration from settings.json
+ * Voice input configuration schema and loader
  */
 
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { getAgentDir } from "@mariozechner/pi-coding-agent";
+import { type Static, Type } from "@sinclair/typebox";
+import { loadSettings as loadSettingsUtil } from "../../utils/settings.js";
 
-export interface VoiceInputSettings {
+/**
+ * Voice input settings schema
+ */
+export const VoiceInputSchema = Type.Object({
 	/** Absolute path to whisper model file (skips auto-detection) */
-	modelPath?: string;
+	modelPath: Type.Optional(Type.String()),
 	/** Additional directories to search for models (checked before defaults) */
-	modelSearchPaths?: string[];
-}
+	modelSearchPaths: Type.Optional(Type.Array(Type.String())),
+});
+
+export type VoiceInputSettings = Static<typeof VoiceInputSchema>;
 
 /**
  * Load voice input settings from settings.json
  *
  * Looks for "voiceInput" key in ~/.config/pi/settings.json or .pi/settings.json
+ * Validates against VoiceInputSchema.
  */
 export function loadSettings(): VoiceInputSettings {
-	const settingsPath = join(getAgentDir(), "settings.json");
-	if (!existsSync(settingsPath)) return {};
-
-	try {
-		const raw = JSON.parse(readFileSync(settingsPath, "utf-8"));
-		if (typeof raw !== "object" || raw === null || Array.isArray(raw))
-			return {};
-
-		const voiceInput = raw["voiceInput"];
-		if (
-			typeof voiceInput === "object" &&
-			voiceInput !== null &&
-			!Array.isArray(voiceInput)
-		) {
-			return voiceInput as VoiceInputSettings;
-		}
-	} catch {
-		// Ignore parse errors
-	}
-
-	return {};
+	return loadSettingsUtil<VoiceInputSettings>(
+		"voiceInput",
+		VoiceInputSchema,
+	).unwrapOr({});
 }
