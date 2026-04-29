@@ -16,14 +16,7 @@
  * - ↑/↓ or k/j to scroll, q/Esc to dismiss
  */
 
-import {
-	type ImageContent,
-	type Message,
-	stream,
-	type TextContent,
-	type ThinkingContent,
-	type ToolCall,
-} from "@mariozechner/pi-ai";
+import { type Message, stream } from "@mariozechner/pi-ai";
 import {
 	BorderedLoader,
 	type ExtensionAPI,
@@ -36,7 +29,8 @@ import {
 	matchesKey,
 	truncateToWidth,
 } from "@mariozechner/pi-tui";
-import { pickModel } from "../../utils/pick-model";
+import { getMessages, messageText } from "../../utils/conversation/messages";
+import { pickModel } from "../../utils/model/pick";
 
 const BTW_SYSTEM_PROMPT = `\
 You are answering a brief side question about an active coding session.
@@ -55,41 +49,8 @@ const MAX_CONTEXT_CHARS = 40_000;
 const MAX_CONTEXT_MESSAGES = 40;
 const HALF_PAGE = 15;
 
-type ContentBlock = TextContent | ThinkingContent | ImageContent | ToolCall;
-
-function blockText(block: ContentBlock): string {
-	switch (block.type) {
-		case "text":
-			return block.text;
-		case "thinking":
-			return block.thinking;
-		case "image":
-		case "toolCall":
-			return "";
-	}
-}
-
-function messageText(msg: Message): string {
-	if (typeof msg.content === "string") return msg.content;
-	return msg.content.map(blockText).filter(Boolean).join("\n");
-}
-
-function isMessage(value: unknown): value is Message {
-	if (typeof value !== "object" || value === null) return false;
-	const role = (value as { role?: string }).role;
-	return role === "user" || role === "assistant" || role === "toolResult";
-}
-
 function getSessionMessages(ctx: ExtensionContext): Message[] {
-	const all: Message[] = [];
-	for (const entry of ctx.sessionManager.getBranch()) {
-		if (entry.type !== "message") continue;
-		if (isMessage(entry.message)) {
-			all.push(entry.message);
-		}
-	}
-
-	const recent = all.slice(-MAX_CONTEXT_MESSAGES);
+	const recent = getMessages(ctx).slice(-MAX_CONTEXT_MESSAGES);
 
 	// Walk backwards accumulating size; find oldest message that fits
 	let chars = 0;

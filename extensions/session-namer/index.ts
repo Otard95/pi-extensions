@@ -19,7 +19,7 @@ import type {
 	ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
 import { once } from "../../utils/func/once";
-import { pickModel } from "../../utils/pick-model";
+import { pickModel } from "../../utils/model/pick";
 
 const MAX_SESSION_NAME_LENGTH = 72;
 const MAX_PROMPT_CHARS = 400;
