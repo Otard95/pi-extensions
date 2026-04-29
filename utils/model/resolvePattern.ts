@@ -7,16 +7,13 @@ export async function resolveModelPattern(
 ): Promise<ModelChoice | undefined> {
 	const [provider, ...idParts] = pattern.split("/");
 	const id = idParts.join("/");
-	if (provider && id) {
-		const model = ctx.modelRegistry.find(provider, id);
-		if (model) {
-			const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
-			if (auth.ok) {
-				return {
-					model,
-					auth: { apiKey: auth.apiKey, headers: auth.headers },
-				};
-			}
-		}
-	}
+	if (!provider || !id) return undefined;
+
+	const available = await ctx.modelRegistry.getAvailable();
+	const model = available.find((m) => m.provider === provider && m.id === id);
+	if (!model) return undefined;
+
+	const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+	if (!auth.ok) return undefined;
+	return { model, auth: { apiKey: auth.apiKey, headers: auth.headers } };
 }
