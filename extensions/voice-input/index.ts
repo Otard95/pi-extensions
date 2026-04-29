@@ -289,4 +289,24 @@ export default function (pi: ExtensionAPI) {
 			ctx.ui.notify(msg, "info");
 		},
 	});
+
+	// Temporary auth debug command - inspect what getApiKeyAndHeaders returns per provider
+	pi.registerCommand("auth-debug", {
+		description: "Show auth status for all available models (debug)",
+		handler: async (_args, ctx) => {
+			const available = await ctx.modelRegistry.getAvailable();
+			let msg = `Auth debug (${available.length} available models):\n\n`;
+
+			for (const model of available) {
+				const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+				msg += `${model.provider}/${model.id}\n`;
+				msg += `  ok:      ${auth.ok}\n`;
+				msg += `  apiKey:  ${auth.ok && auth.apiKey ? `${auth.apiKey.slice(0, 8)}...` : "(none)"}\n`;
+				msg += `  headers: ${auth.ok && auth.headers && Object.keys(auth.headers).length > 0 ? JSON.stringify(Object.keys(auth.headers)) : "(none)"}\n`;
+				msg += "\n";
+			}
+
+			ctx.ui.notify(msg, "info");
+		},
+	});
 }
