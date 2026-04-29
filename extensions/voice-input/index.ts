@@ -13,11 +13,29 @@ import type {
 	ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
 import { createAudioRecorder } from "./audio-recorder.js";
+import { cleanupTranscript } from "./cleanup.js";
 import { findWhisperModel, getRecommendedModelPath } from "./model-finder.js";
 import { loadSettings } from "./settings.js";
 import { transcribe } from "./transcriber.js";
 
 const audioRecorder = createAudioRecorder();
+
+/** Transcription event history for debugging */
+interface TranscriptionEvent {
+	timestamp: number;
+	raw: string;
+	cleaned: string;
+	cleanupAttempted: boolean;
+	cleanupModelId?: string;
+	cleanupProvider?: string;
+	cleanupSelection?: "override" | "auto";
+	cleanupDurationMs?: number;
+	cleanupChanged?: boolean;
+	cleanupCharDiff?: number;
+	cleanupError?: string;
+}
+
+const transcriptionHistory: TranscriptionEvent[] = [];
 let recordingProcess: ChildProcess | null = null;
 let recordingFile: string | null = null;
 
@@ -79,8 +97,36 @@ export default function (pi: ExtensionAPI) {
 
 				try {
 					const settings = loadSettings();
-					const text = await transcribe(recordingFile, settings, ctx);
+					const rawText = await transcribe(recordingFile, settings, ctx);
 					recordingFile = null;
+
+					// TODO: Implement streaming - transcribe → cleanup could stream
+					// Currently sequential: audio → whisper → wait → LLM cleanup → wait → insert
+					// Ideal: audio → whisper (streaming) → LLM cleanup (streaming) → insert chunks
+
+					// Clean up transcript with LLM (uses conversation context)
+					ctx.ui.setStatus("voice-input", "🔄 Cleaning up transcription...");
+					const cleanup = await cleanupTranscript(rawText, settings, ctx);
+					const text = cleanup.text;
+
+					// Store event for debugging
+					transcriptionHistory.push({
+						timestamp: Date.now(),
+						raw: rawText,
+						cleaned: text,
+						cleanupAttempted: cleanup.attempted,
+						cleanupModelId: cleanup.modelId,
+						cleanupProvider: cleanup.provider,
+						cleanupSelection: cleanup.selection,
+						cleanupDurationMs: cleanup.durationMs,
+						cleanupChanged: cleanup.changed,
+						cleanupCharDiff: cleanup.charDiff,
+						cleanupError: cleanup.error,
+					});
+					// Keep only last 10 events
+					if (transcriptionHistory.length > 10) {
+						transcriptionHistory.shift();
+					}
 
 					ctx.ui.setStatus("voice-input", undefined);
 					if (text) {
@@ -128,7 +174,32 @@ export default function (pi: ExtensionAPI) {
 
 			try {
 				const settings = loadSettings();
-				const text = await transcribe(filePath, settings, ctx);
+				const rawText = await transcribe(filePath, settings, ctx);
+
+				// Clean up transcript
+				ctx.ui.setStatus("voice-input", "🔄 Cleaning up transcription...");
+				const cleanup = await cleanupTranscript(rawText, settings, ctx);
+				const text = cleanup.text;
+
+				// Store event for debugging
+				transcriptionHistory.push({
+					timestamp: Date.now(),
+					raw: rawText,
+					cleaned: text,
+					cleanupAttempted: cleanup.attempted,
+					cleanupModelId: cleanup.modelId,
+					cleanupProvider: cleanup.provider,
+					cleanupSelection: cleanup.selection,
+					cleanupDurationMs: cleanup.durationMs,
+					cleanupChanged: cleanup.changed,
+					cleanupCharDiff: cleanup.charDiff,
+					cleanupError: cleanup.error,
+				});
+				// Keep only last 10 events
+				if (transcriptionHistory.length > 10) {
+					transcriptionHistory.shift();
+				}
+
 				ctx.ui.setStatus("voice-input", undefined);
 
 				if (text) {
@@ -176,6 +247,44 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			msg += `\nRecommended install location: ${recommended}`;
+
+			ctx.ui.notify(msg, "info");
+		},
+	});
+
+	// Debug command - show transcription history
+	pi.registerCommand("voice-debug", {
+		description: "Show transcription history (raw vs cleaned)",
+		handler: async (_args, ctx) => {
+			if (transcriptionHistory.length === 0) {
+				ctx.ui.notify("No transcription history yet", "info");
+				return;
+			}
+
+			let msg = `Transcription History (${transcriptionHistory.length} events):\n\n`;
+
+			transcriptionHistory.forEach((event, i) => {
+				const time = new Date(event.timestamp).toLocaleTimeString();
+				const cleanup = event.cleanupAttempted ? "attempted" : "skipped";
+
+				msg += `[${i + 1}] ${time}\n`;
+				msg += `  Cleanup: ${cleanup}\n`;
+				if (event.cleanupModelId) msg += `  Model: ${event.cleanupModelId}\n`;
+				if (event.cleanupProvider)
+					msg += `  Provider: ${event.cleanupProvider}\n`;
+				if (event.cleanupSelection)
+					msg += `  Selection: ${event.cleanupSelection}\n`;
+				if (event.cleanupDurationMs !== undefined)
+					msg += `  Duration: ${event.cleanupDurationMs}ms\n`;
+				if (event.cleanupChanged !== undefined)
+					msg += `  Changed: ${event.cleanupChanged ? "YES" : "NO"}\n`;
+				if (event.cleanupCharDiff !== undefined)
+					msg += `  Char diff: ${event.cleanupCharDiff}\n`;
+				if (event.cleanupError) msg += `  Error: ${event.cleanupError}\n`;
+				msg += `  Raw: ${event.raw}\n`;
+				msg += `  Cleaned: ${event.cleaned}\n`;
+				msg += `\n`;
+			});
 
 			ctx.ui.notify(msg, "info");
 		},

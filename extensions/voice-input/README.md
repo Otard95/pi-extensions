@@ -56,7 +56,11 @@ The extension auto-detects models in platform-specific locations:
     "modelSearchPaths": [
       "/additional/search/path",
       "/another/path"
-    ]
+    ],
+    "cleanup": {
+      "enabled": true,
+      "model": "anthropic/claude-haiku-4-5"
+    }
   }
 }
 ```
@@ -64,6 +68,8 @@ The extension auto-detects models in platform-specific locations:
 **Settings:**
 - `modelPath` - Absolute path to model file (skips auto-detection)
 - `modelSearchPaths` - Additional directories to search (checked before defaults)
+- `cleanup.enabled` - Enable LLM cleanup of transcriptions (default: true)
+- `cleanup.model` - Model override for cleanup (default: auto-pick fast model)
 
 ## Usage
 
@@ -72,7 +78,30 @@ The extension auto-detects models in platform-specific locations:
 1. Press `Ctrl+.` → starts recording
 2. Speak into microphone
 3. Press `Ctrl+.` again → stops & transcribes
-4. Text inserted at cursor
+4. **Automatic cleanup** - LLM cleans up spoken language artifacts
+5. Text inserted at cursor
+
+### Transcription Cleanup
+
+By default, transcriptions are automatically cleaned up using a fast LLM (e.g., Claude Haiku) to:
+
+- Remove filler words (um, uh, like, you know)
+- Fix grammar and punctuation
+- Make sentences more concise
+- **Preserve original meaning** - does NOT rephrase or reinterpret
+
+The cleanup agent receives recent conversation context to better understand what you're saying.
+
+**Important:** The cleanup is conservative - it's better to keep text slightly rough than to change your intended meaning.
+
+To disable cleanup:
+```json
+{
+  "voiceInput": {
+    "cleanup": { "enabled": false }
+  }
+}
+```
 
 ### Commands
 
