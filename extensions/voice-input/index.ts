@@ -294,7 +294,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerCommand("auth-debug", {
 		description: "Show auth status for all available models (debug)",
 		handler: async (_args, ctx) => {
-			const available = await ctx.modelRegistry.getAvailable();
+			const available = ctx.modelRegistry.getAvailable();
 			let msg = `Auth debug (${available.length} available models):\n\n`;
 
 			for (const model of available) {
