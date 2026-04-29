@@ -23,6 +23,7 @@
 	},
 	"scripts": {
 		"check": "tsc --noEmit",
+		"check:full": "node --experimental-strip-types scripts/diagnostics.ts",
 		"lint": "biome check",
 		"lint:fix": "biome check --write",
 		"format": "biome format --write",
