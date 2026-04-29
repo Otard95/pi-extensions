@@ -16,6 +16,13 @@ type PickModelOptions = {
 	noFallback?: boolean;
 };
 
+type ResolvedAuth = { ok: true; apiKey?: string; headers?: Record<string, string> };
+
+/** ok=true but no credentials means provider exists but isn't authenticated */
+function hasCredentials(auth: { ok: boolean; apiKey?: string; headers?: Record<string, string> }): auth is ResolvedAuth {
+	return auth.ok && (!!auth.apiKey || (!!auth.headers && Object.keys(auth.headers).length > 0));
+}
+
 /**
  * Find the first available cheap model from a preferred list.
  * Falls back to the current session model if none match.
@@ -39,14 +46,14 @@ export async function pickModel(
 		const model = ctx.modelRegistry.find(provider, id);
 		if (!model) continue;
 		const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
-		if (auth.ok) {
+		if (hasCredentials(auth)) {
 			return { model, auth: { apiKey: auth.apiKey, headers: auth.headers } };
 		}
 	}
 
 	if (ctx.model && options.noFallback !== true) {
 		const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model);
-		if (auth.ok) {
+		if (hasCredentials(auth)) {
 			return {
 				model: ctx.model,
 				auth: { apiKey: auth.apiKey, headers: auth.headers },
