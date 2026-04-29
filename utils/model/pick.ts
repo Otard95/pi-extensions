@@ -27,7 +27,7 @@ export async function pickModel(
 	opts?: PickModelOptions,
 ): Promise<ModelChoice | null> {
 	const options = { preferred: DEFAULT_PREFERRED, ...(opts ?? {}) };
-	const available = await ctx.modelRegistry.getAvailable();
+	const available = ctx.modelRegistry.getAvailable();
 
 	if (ctx.model && options.preferCurrentProvider === true) {
 		const m = await pickModel(ctx, {

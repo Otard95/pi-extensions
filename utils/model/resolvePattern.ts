@@ -9,7 +9,7 @@ export async function resolveModelPattern(
 	const id = idParts.join("/");
 	if (!provider || !id) return undefined;
 
-	const available = await ctx.modelRegistry.getAvailable();
+	const available = ctx.modelRegistry.getAvailable();
 	const model = available.find((m) => m.provider === provider && m.id === id);
 	if (!model) return undefined;
 
