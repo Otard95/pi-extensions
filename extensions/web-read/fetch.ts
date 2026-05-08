@@ -10,6 +10,12 @@ import { loadSettings } from "../../utils/settings.js";
 import { getSiteCache, writeSiteCache } from "./cache";
 import type { Site } from "./site";
 
+/**
+ * Tracks hostnames that have been attempted with a simple fetch.
+ * Used by the playwright renderer to enforce "try simple first" policy.
+ */
+export const fetchedDomains = new Set<string>();
+
 /** Elements that never produce useful markdown and are always stripped. */
 const ALWAYS_REMOVE = [
 	"style",
@@ -38,12 +44,18 @@ const WebReadSchema = Type.Object({
 			footer: Type.Optional(Type.Boolean()),
 		}),
 	),
+	browserPath: Type.Optional(
+		Type.String({
+			description:
+				"Path to a Chromium-based browser executable for advanced rendering",
+		}),
+	),
 });
 
 type WebReadSettings = Static<typeof WebReadSchema>;
 
 // Load and cache settings once at module load
-const WEB_READ_SETTINGS = loadSettings<WebReadSettings>(
+export const WEB_READ_SETTINGS = loadSettings<WebReadSettings>(
 	"web-read",
 	WebReadSchema,
 ).unwrapOr({});
@@ -85,6 +97,8 @@ export async function fetchPage(
 	const urlResult = normalizeUrl(rawUrl);
 	if (urlResult.isErr()) return Result.Err(urlResult.unwrapErr());
 	const url = urlResult.unwrap();
+
+	fetchedDomains.add(url.hostname);
 
 	const cache = !refresh ? getSiteCache(url) : Result.Ok(Option.None<Site>());
 	if (cache.isErr()) return Result.Err(cache.unwrapErr());

@@ -24,6 +24,32 @@ Fetches full page (from internet or cache), converts to markdown, then filters o
 | `pattern` | No       | Regex pattern to search for in the page            |
 | `context` | No       | Number of context lines around each match (default: 0) |
 | `refresh` | No       | Bypass cache and re-fetch the page                 |
+| `render`  | No       | `"simple"` (default) or `"advanced"` (headless browser for JS-heavy pages) |
+
+## JavaScript Rendering
+
+Some sites load content via JavaScript after the initial page load. The default `fetch` approach only sees the server-rendered HTML, so these pages may return incomplete content.
+
+Set `render: "advanced"` to use a headless Chromium browser that executes JavaScript and waits for the page to finish loading before extracting content.
+
+**Safety guard:** To prevent unnecessary browser overhead, `render: "advanced"` will error if the domain hasn't been fetched with the simple method first. Always try a normal fetch first — many sites work fine without JS rendering.
+
+### Configuration
+
+Advanced rendering uses `playwright-core` (no bundled browser) with your system's Chromium. Configure the browser path in `settings.json`:
+
+```json
+{
+  "web-read": {
+    "browserPath": "/path/to/chromium"
+  }
+}
+```
+
+Common paths:
+- NixOS: `$(which chromium)` or check your system packages
+- Linux: `/usr/bin/chromium` or `/usr/bin/google-chrome-stable`
+- macOS: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`
 
 ## HTML Filtering
 
