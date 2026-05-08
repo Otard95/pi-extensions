@@ -27,7 +27,7 @@
         packages = {
           default = pkgs.buildNpmPackage {
             pname = "pi-extensions";
-            version = "0.9.1";
+            version = "0.10.0";
 
             src = self;
 
