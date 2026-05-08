@@ -155,6 +155,19 @@ export function toolResult(
 	};
 }
 
+export function toolCompaction(content: string): SessionEntry {
+	const id = nextId();
+	return {
+		id,
+		parentId: `parent-${id}`,
+		type: "custom_message",
+		timestamp: new Date().toISOString(),
+		customType: "tool-compaction",
+		content,
+		display: true,
+	} as SessionEntry;
+}
+
 /**
  * Build a simple conversation: user → assistant text → tool calls → tool results
  */
