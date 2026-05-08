@@ -114,6 +114,26 @@ const TOOL_DUPLICATE_PATTERNS: {
 		description:
 			"Use the Grep tool instead of grep/rg/ripgrep in bash subshells.",
 	},
+	{
+		// Matches find at the start of a command
+		pattern: /^\s*find\b/,
+		tool: "find",
+		description: "Use the find tool instead of find in bash.",
+	},
+	{
+		// Matches find after && or ; e.g. "cd dir && find ..."
+		pattern: /&&\s*find\b|;\s*find\b/,
+		tool: "find",
+		description:
+			"Use the find tool instead of find in bash. Do not use cd && find to circumvent this.",
+	},
+	{
+		// Matches find in subshells e.g. "(cd dir && find ...)"
+		pattern: /\(\s*cd\b[^)]*\bfind\b/,
+		tool: "find",
+		description:
+			"Use the find tool instead of find in bash subshells.",
+	},
 ];
 
 type BlockResult = { block: true; reason: string } | undefined;
