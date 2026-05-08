@@ -1,22 +1,22 @@
 import type { ExtensionAPI, SessionEntry } from "@mariozechner/pi-coding-agent";
+
 import { at } from "../../utils/array/at";
 import { Result } from "../../utils/monad/result";
 import {
 	assistantdMessageHasText,
-	findToolGroups,
 	isMessageEntry,
 	isUserMessage,
 	splitIntoTurns,
-	type ToolCompaction,
 } from "./analysis";
 import {
 	parseArgs,
 	type SemanticCompactArgs,
 	SemanticCompactKeepMode,
 } from "./args";
-import { compactToolGroup } from "./compaction";
+import { compactTools } from "./compaction";
 import { completions } from "./completions";
-import { populateSession, rebuildEntries } from "./session";
+import { populateSession } from "./session";
+import { compactTurns } from "./turn-compaction";
 
 export default function (pi: ExtensionAPI) {
 	pi.registerCommand("semantic-compact", {
@@ -47,109 +47,37 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 			const compactArgs = argsResult.unwrap();
-			if (compactArgs.mode === "turns") {
-				ctx.ui.notify("This mode is not implemented yet", "error");
-				return;
-			}
 
 			const entries = ctx.sessionManager.getBranch();
-
 			const entriesToCompact = excludeKeptEntries(entries, compactArgs.keep);
 
-			const groups = findToolGroups(entriesToCompact).filter(
-				(g) => g.tokenEstimate >= compactArgs.threshold,
-			);
-
-			if (groups.length === 0) {
-				ctx.ui.notify(
-					"Nothing to compact (no tool groups above threshold)",
-					"info",
-				);
-				return;
-			}
-
-			const confirmed = await ctx.ui.confirm(
-				"Semantic Compaction",
-				`Compact ${groups.length} tool groups using Haiku?`,
-			);
-			if (!confirmed) return;
-
-			let completed = 0;
-			ctx.ui.notify(
-				`⏳ Compacting ${groups.length} tool groups in parallel...`,
-				"info",
-			);
-			ctx.ui.setStatus(
-				"compaction",
-				`⏳ Compacting 0/${groups.length} tool groups`,
-			);
-
-			const settled = await Promise.allSettled(
-				groups.map((g) =>
-					compactToolGroup(g).finally(() => {
-						completed++;
-						ctx.ui.setStatus(
-							"compaction",
-							`⏳ Compacting ${completed}/${groups.length} tool groups`,
+			const result =
+				compactArgs.mode === "turns"
+					? await compactTurns(
+							entriesToCompact,
+							entries,
+							compactArgs.threshold,
+							ctx,
+						)
+					: await compactTools(
+							entriesToCompact,
+							entries,
+							compactArgs.threshold,
+							ctx,
 						);
-					}),
-				),
-			);
 
-			ctx.ui.setStatus("compaction", undefined);
-
-			const compactions: ToolCompaction[] = [];
-			const failures: string[] = [];
-			for (let i = 0; i < settled.length; i++) {
-				const result = at(settled, i);
-				if (result.status === "fulfilled") {
-					compactions.push(result.value);
-				} else {
-					failures.push(`Group ${i + 1}: ${result.reason}`);
-				}
-			}
-
-			if (compactions.length === 0) {
-				ctx.ui.notify(
-					`All compactions failed:\n${failures.join("\n")}`,
-					"error",
-				);
-				return;
-			}
-
-			if (failures.length > 0) {
-				ctx.ui.notify(
-					`${failures.length} group(s) failed (will be left as-is):\n${failures.join("\n")}`,
-					"warning",
-				);
-			}
-
-			const rebuilt = rebuildEntries(entries, compactions);
-
-			const originalTokens = groups.reduce(
-				(sum, g) => sum + g.tokenEstimate,
-				0,
-			);
-			const savedTokens =
-				compactions.reduce((sum, c) => sum + c.tokenEstimate, 0) -
-				compactions.reduce(
-					(sum, c) => sum + Math.ceil(c.compacted.length / 4),
-					0,
-				);
+			if (!result) return;
 
 			const parentSession = ctx.sessionManager.getSessionFile();
 			await ctx.newSession({
 				parentSession,
 				setup: async (sm) => {
-					await populateSession(sm, rebuilt);
+					await populateSession(sm, result.rebuilt);
 				},
 			});
 
 			ctx.ui.notify(
-				`Compacted session created\n` +
-					`  Groups: ${compactions.length}/${groups.length} compacted\n` +
-					`  Entries: ${entries.length} → ${rebuilt.length}\n` +
-					`  Tokens: ~${originalTokens} → ~${originalTokens - savedTokens} (saved ~${savedTokens})`,
+				`Compacted session created\n  ${result.stats.replace(/\n/g, "\n  ")}`,
 				"info",
 			);
 		},

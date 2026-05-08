@@ -131,6 +131,18 @@ export interface ToolCompaction extends ToolGroup {
 	compacted: string;
 }
 
+/** A group of one or more turns to be compacted together. */
+export interface TurnGroup {
+	/** The individual turns in this group */
+	turns: SessionEntry[][];
+	/** Original turn indices (for display) */
+	turnIndices: number[];
+	/** All entries flattened */
+	entries: SessionEntry[];
+	/** Estimated tokens across all entries */
+	tokenEstimate: number;
+}
+
 // --- Core functions ---
 
 /** Split a flat entry list into turns. Each turn starts with a user message. */
@@ -154,6 +166,76 @@ export function splitIntoTurns(entries: SessionEntry[]): SessionEntry[][] {
 	}
 
 	return turns;
+}
+
+/** Estimate total tokens in a list of entries. */
+function estimateEntriesTokens(entries: SessionEntry[]): number {
+	let tokens = 0;
+	for (const entry of entries) {
+		if (entry.type === "message") {
+			tokens += estimateTokens(entry.message);
+		}
+	}
+	return tokens;
+}
+
+/**
+ * Group turns for compaction. Small turns (below threshold) are buffered
+ * and merged into the next anchor turn (one above threshold).
+ * Trailing small turns merge backward into the last group.
+ */
+export function groupTurns(
+	turns: SessionEntry[][],
+	threshold: number,
+): TurnGroup[] {
+	const groups: TurnGroup[] = [];
+	let buffer: { turn: SessionEntry[]; index: number }[] = [];
+
+	for (let i = 0; i < turns.length; i++) {
+		const turn = at(turns, i);
+		const tokens = estimateEntriesTokens(turn);
+		buffer.push({ turn, index: i });
+
+		if (tokens >= threshold) {
+			// This turn is an anchor — commit the buffer as a group
+			groups.push({
+				turns: buffer.map((b) => b.turn),
+				turnIndices: buffer.map((b) => b.index),
+				entries: buffer.flatMap((b) => b.turn),
+				tokenEstimate: buffer.reduce(
+					(sum, b) => sum + estimateEntriesTokens(b.turn),
+					0,
+				),
+			});
+			buffer = [];
+		}
+	}
+
+	// Trailing small turns — merge into last group
+	if (buffer.length > 0) {
+		if (groups.length > 0) {
+			const lastGroup = last(groups);
+			for (const b of buffer) {
+				lastGroup.turns.push(b.turn);
+				lastGroup.turnIndices.push(b.index);
+				lastGroup.entries.push(...b.turn);
+				lastGroup.tokenEstimate += estimateEntriesTokens(b.turn);
+			}
+		} else {
+			// Everything is small — one group
+			groups.push({
+				turns: buffer.map((b) => b.turn),
+				turnIndices: buffer.map((b) => b.index),
+				entries: buffer.flatMap((b) => b.turn),
+				tokenEstimate: buffer.reduce(
+					(sum, b) => sum + estimateEntriesTokens(b.turn),
+					0,
+				),
+			});
+		}
+	}
+
+	return groups;
 }
 
 /** Find tool groups within a turn's entries. */
