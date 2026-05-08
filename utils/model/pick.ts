@@ -4,7 +4,7 @@ import type { ModelChoice } from "./type";
 const DEFAULT_PREFERRED: ReadonlyArray<readonly [string, string]> = [
 	["google", "gemini-2.5-flash"],
 	["anthropic", "claude-haiku-4-5"],
-	["openai", "gpt-5-mini"],
+	["openai", "gpt-5.4-mini"],
 	["openai-codex", "gpt-5.1-codex-mini"],
 	["github-copilot", "gpt-5-mini"],
 	["openai", "gpt-4.1-mini"],

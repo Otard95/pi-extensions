@@ -28,7 +28,7 @@ function formatDiagnostic(d: ts.Diagnostic): string {
 	const { line, character } = d.file.getLineAndCharacterOfPosition(
 		d.start ?? 0,
 	);
-	const file = d.file.fileName.replace(process.cwd() + "/", "");
+	const file = d.file.fileName.replace(`${process.cwd()}/`, "");
 
 	return `${file}:${line + 1}:${character + 1} ${category} ${code}: ${message}`;
 }
@@ -46,14 +46,9 @@ const parsedConfig = ts.parseJsonConfigFileContent(
 	".",
 );
 
-const program = ts.createProgram(
-	parsedConfig.fileNames,
-	parsedConfig.options,
-);
+const program = ts.createProgram(parsedConfig.fileNames, parsedConfig.options);
 
-const diagnostics: ts.Diagnostic[] = [
-	...ts.getPreEmitDiagnostics(program),
-];
+const diagnostics: ts.Diagnostic[] = [...ts.getPreEmitDiagnostics(program)];
 
 for (const sourceFile of program.getSourceFiles()) {
 	if (!sourceFile.isDeclarationFile) {
