@@ -78,9 +78,9 @@ export async function renderPage(
 		);
 	}
 
-	// Check cache first (unless refresh requested)
+	// Check rendered cache first (unless refresh requested)
 	if (!refresh) {
-		const cache = getSiteCache(url);
+		const cache = getSiteCache(url, true);
 		if (cache.isErr()) return Result.Err(cache.unwrapErr());
 		const cached = cache.unwrap();
 		if (cached.isSome()) return Result.Ok(cached.unwrap());
@@ -122,7 +122,7 @@ export async function renderPage(
 		]);
 		const markdown = td.turndown(html);
 
-		return writeSiteCache(url, title, markdown);
+		return writeSiteCache(url, title, markdown, true);
 	} catch (err) {
 		return Result.Err(
 			new Error(

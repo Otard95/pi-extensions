@@ -10,16 +10,20 @@ import { Site } from "./site";
 
 const CACHE_DIR = join(process.env["HOME"] ?? "/tmp", ".cache", "pi", "web");
 
-function getCachePath(url: URL): string {
+function getCachePath(url: URL, rendered = false): string {
 	const hash = `${url.hostname}/${url.pathname.replaceAll(/[/+%;]+/g, "-")}`;
-	return join(CACHE_DIR, `${hash}.md`);
+	const suffix = rendered ? ".rendered.md" : ".md";
+	return join(CACHE_DIR, `${hash}${suffix}`);
 }
 
 /**
  * Read a slice of the cached markdown file.
  */
-export function getSiteCache(url: URL): Result<Option<Site>> {
-	const path = getCachePath(url);
+export function getSiteCache(
+	url: URL,
+	rendered = false,
+): Result<Option<Site>> {
+	const path = getCachePath(url, rendered);
 	if (!existsSync(path)) return Result.Ok(Option.None());
 
 	return Result.try(() => readFileSync(path, "utf-8"))
@@ -38,8 +42,9 @@ export function writeSiteCache(
 	url: URL,
 	title: string,
 	content: string,
+	rendered = false,
 ): Result<Site> {
-	const path = getCachePath(url);
+	const path = getCachePath(url, rendered);
 	const frontmatter = [
 		"---",
 		`title: ${JSON.stringify(title)}`,

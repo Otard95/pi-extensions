@@ -1,5 +1,5 @@
-import { type ExtensionAPI, keyHint } from "@mariozechner/pi-coding-agent";
 import { StringEnum } from "@mariozechner/pi-ai";
+import { type ExtensionAPI, keyHint } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { fetchPage, normalizeUrl } from "./fetch";
