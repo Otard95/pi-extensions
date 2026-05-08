@@ -240,8 +240,14 @@ export default function screenshotExtension(pi: ExtensionAPI) {
 		label: "List Windows",
 		description:
 			"List all visible application windows with their names and titles. " +
-			"Use this to discover what's on screen before taking a screenshot.",
-		promptSnippet: "List visible windows to discover what's on screen",
+			"Returns monitor layout, window positions, and sizes. " +
+			"Use this before screenshot when any specific app or region is mentioned.",
+		promptSnippet:
+			"List visible windows with positions before taking targeted screenshots",
+		promptGuidelines: [
+			"Use list_windows before screenshot whenever the user mentions a specific app, window, or region — it reveals app names and coordinates needed for targeting.",
+			"Only use screenshot without list_windows first when the user explicitly asks for a full screen capture.",
+		],
 		parameters: Type.Object({}),
 
 		renderCall(_args, theme) {
@@ -294,11 +300,11 @@ export default function screenshotExtension(pi: ExtensionAPI) {
 		name: "screenshot",
 		label: "Screenshot",
 		description:
-			"Take a screenshot of the entire screen or a specific application window. " +
+			"Take a screenshot of the entire screen, a specific application window, or an explicit region. " +
 			"Returns the image for visual inspection. " +
-			"When targeting an app, matches against window class and title.",
+			"Use list_windows first to discover app names and coordinates when targeting a specific app or region.",
 		promptSnippet:
-			"Capture screenshots of the full screen or specific application windows",
+			"Capture screenshots of the full screen, specific windows, or explicit regions",
 		parameters: Type.Object({
 			target: Type.Optional(
 				Type.String({
