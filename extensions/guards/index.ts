@@ -131,8 +131,7 @@ const TOOL_DUPLICATE_PATTERNS: {
 		// Matches find in subshells e.g. "(cd dir && find ...)"
 		pattern: /\(\s*cd\b[^)]*\bfind\b/,
 		tool: "find",
-		description:
-			"Use the find tool instead of find in bash subshells.",
+		description: "Use the find tool instead of find in bash subshells.",
 	},
 ];
 
