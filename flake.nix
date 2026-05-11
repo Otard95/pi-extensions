@@ -27,11 +27,11 @@
         packages = {
           default = pkgs.buildNpmPackage {
             pname = "pi-extensions";
-            version = "0.10.0";
+            version = "0.11.0";
 
             src = self;
 
-            npmDepsHash = "sha256-0QjyuVoG9vOkHWFRiwB8rjQ5GWgNL0J5Ktr+QpP7goM=";
+            npmDepsHash = "sha256-Vz2SYn5d2ZxeBEW4jwBCAMZvTRvLmKVjcXOkibqXBrg=";
 
             npmPackFlags = [ "--ignore-scripts" ];
             npmInstallFlags = [ "--ignore-scripts" "--omit=dev" "--omit=peer" "--omit=optional" ];
