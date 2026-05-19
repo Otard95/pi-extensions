@@ -74,12 +74,13 @@ export default function (pi: ExtensionAPI) {
 				setup: async (sm) => {
 					await populateSession(sm, result.rebuilt);
 				},
+				withSession: async (newCtx) => {
+					newCtx.ui.notify(
+						`Compacted session created\n  ${result.stats.replace(/\n/g, "\n  ")}`,
+						"info",
+					);
+				},
 			});
-
-			ctx.ui.notify(
-				`Compacted session created\n  ${result.stats.replace(/\n/g, "\n  ")}`,
-				"info",
-			);
 		},
 	});
 }
