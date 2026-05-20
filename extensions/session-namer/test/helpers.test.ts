@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
 	buildSessionName,
-	heuristicTask,
 	normalizeWhitespace,
 	sanitizeModelTitle,
 	sentenceCase,
@@ -80,59 +79,15 @@ describe("sanitizeModelTitle", () => {
 	});
 });
 
-describe("heuristicTask", () => {
-	it("extracts first sentence", () => {
-		expect(heuristicTask("Fix the login bug. Also check the tests.")).toBe(
-			"Fix the login bug",
-		);
-	});
-
-	it("caps at 8 words", () => {
-		const result = heuristicTask(
-			"one two three four five six seven eight nine ten",
-		);
-		expect(result.split(" ").length).toBeLessThanOrEqual(8);
-	});
-
-	it("returns default for empty input", () => {
-		expect(heuristicTask("")).toBe("General work");
-	});
-
-	it("strips trailing punctuation", () => {
-		expect(heuristicTask("Fix the bug!")).toBe("Fix the bug");
-	});
-
-	it("takes first line of multiline input", () => {
-		expect(heuristicTask("Fix the bug\nAlso check tests")).toBe("Fix the bug");
-	});
-
-	it("sentence-cases the result", () => {
-		expect(heuristicTask("fix the bug")).toBe("Fix the bug");
-	});
-
-	it("returns default for whitespace-only input", () => {
-		expect(heuristicTask("   ")).toBe("General work");
-	});
-});
 
 describe("buildSessionName", () => {
-	it("formats as repo: task", () => {
-		expect(buildSessionName("/home/user/my-repo", "Fix auth")).toBe(
-			"my-repo: Fix auth",
-		);
-	});
-
-	it("uses 'session' for empty cwd", () => {
-		expect(buildSessionName("", "Fix auth")).toBe("session: Fix auth");
-	});
-
-	it("falls back to default task", () => {
-		expect(buildSessionName("/home/user/repo", "")).toBe("repo: General work");
+	it("returns the task directly", () => {
+		expect(buildSessionName("Fix auth")).toBe("Fix auth");
 	});
 
 	it("truncates long tasks", () => {
 		const longTask = "A".repeat(100);
-		const result = buildSessionName("/repo", longTask);
+		const result = buildSessionName(longTask);
 		expect(result.length).toBeLessThanOrEqual(72);
 	});
 });

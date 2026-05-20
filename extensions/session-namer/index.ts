@@ -1,13 +1,14 @@
 /**
  * Session Namer Extension
  *
- * Automatically names a brand-new session after the first complete turn.
+ * Automatically names a session after sufficient task context is available.
  *
  * Behavior:
- * - Triggers after the first agent turn completes (user prompt + assistant response)
+ * - Triggers after each agent turn until a name is successfully set
  * - Uses a cheap out-of-band model to generate a short title
- * - Falls back to heuristic naming if no model is available
- * - Runs lazily in the background so the turn is not delayed
+ * - Returns no name if the model cannot identify a concrete task yet
+ *   (e.g. only meta/setup prompts so far) — retries on the next turn
+ * - Runs lazily in the background so turns are not delayed
  * - Never auto-renames after the first successful name
  * - Manual `/name` always takes priority
  */
@@ -18,15 +19,19 @@ import type {
 	ExtensionAPI,
 	ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
-import { once } from "../../utils/func/once";
+
+import {
+	filterContentTypes,
+	formatMessage,
+	getMessages,
+} from "../../utils/conversation/messages";
 import { pickModel } from "../../utils/model/pick";
 
 const MAX_SESSION_NAME_LENGTH = 72;
-const MAX_PROMPT_CHARS = 400;
-const DEFAULT_TASK = "General work";
+const MAX_PROMPT_CHARS = 600;
 
 // Instructions sent to the lightweight naming model.
-const NAMER_SYSTEM_PROMPT = `Generate a short coding session title.
+const NAMER_SYSTEM_PROMPT = `Generate a short coding session title from the user's message(s).
 
 Rules:
 - Return only the title text
@@ -38,7 +43,12 @@ Rules:
 - No trailing punctuation
 - Avoid vague filler like "Help with" or "Work on"
 - Prefer concrete engineering verbs like Fix, Add, Refactor, Review, Debug, Investigate, Improve
-- If the task is unclear, return: General work`;
+- If the messages contain only meta-instructions, mode/persona setup, or style rules
+  with no concrete task, ignore this, and do NOT use it as part of the title
+- INSUFFICIENT_CONTEXT: if there is not enough context to determine a concrete task`;
+
+const NAMER_RETRY_HINT =
+	"- If context is insufficient, return nothing — this will be retried once more context is available";
 
 // ── pure helpers (exported for tests) ─────────────────────────────────────────
 
@@ -66,93 +76,60 @@ export function sanitizeModelTitle(text: string): string | null {
 	return sentenceCase(normalized);
 }
 
-export function buildSessionName(cwd: string, task: string): string {
-	const cwdBase = path.basename(cwd) || "session";
-	const prefix = `${cwdBase}: `;
-	const availableTaskLength = Math.max(
-		12,
-		MAX_SESSION_NAME_LENGTH - prefix.length,
-	);
-	return `${prefix}${truncate(task || DEFAULT_TASK, availableTaskLength)}`;
-}
-
-/**
- * Simple heuristic fallback: first line, first sentence, max 8 words.
- * Only used when no model is available.
- */
-export function heuristicTask(text: string): string {
-	let summary = text.trim();
-	if (!summary) return DEFAULT_TASK;
-
-	summary = summary.split(/\n+/)[0] ?? summary;
-	summary = summary.split(/(?<=[.!?])\s+/)[0] ?? summary;
-	summary = normalizeWhitespace(summary);
-	summary = summary.replace(/[.!?]+$/, "").trim();
-
-	if (!summary) return DEFAULT_TASK;
-
-	const words = summary.split(" ").filter(Boolean);
-	if (words.length > 8) {
-		summary = words.slice(0, 8).join(" ");
-	}
-
-	return sentenceCase(summary);
+export function buildSessionName(task: string): string {
+	return truncate(task, MAX_SESSION_NAME_LENGTH);
 }
 
 // ── context extraction ────────────────────────────────────────────────────────
 
-function getLatestUserText(ctx: ExtensionContext): string | null {
-	const branch = ctx.sessionManager.getBranch();
+/**
+ * Collects user and assistant messages (text + thinking only) newest-first.
+ * Stops after including a message that exceeds MAX_PROMPT_CHARS, keeping it
+ * whole rather than cutting arbitrarily mid-message.
+ * Uses tagged lines ([user], [assistant], [thinking]) for role context.
+ * Tool calls and results are excluded.
+ * Returns null when no relevant messages exist yet.
+ */
+function getSessionContext(
+	ctx: ExtensionContext,
+): { text: string; full: boolean } | null {
+	const messages = filterContentTypes(getMessages(ctx), "text", "thinking");
 
-	for (let i = branch.length - 1; i >= 0; i--) {
-		const entry = branch[i];
-		if (!entry || entry.type !== "message") continue;
+	const parts: string[] = [];
+	for (let i = messages.length - 1; i >= 0; i--) {
+		const msg = messages[i];
+		if (!msg) continue;
 
-		const message = entry.message as {
-			role?: string;
-			content?: string | Array<{ type?: string; text?: string }>;
-		};
-		if (message.role !== "user") continue;
+		const lines = formatMessage(msg);
+		if (lines.length === 0) continue;
 
-		if (typeof message.content === "string") {
-			const text = normalizeWhitespace(message.content);
-			if (text) return text;
-			continue;
-		}
+		const text = lines.join("\n");
+		parts.unshift(text);
 
-		if (Array.isArray(message.content)) {
-			const text = message.content
-				.filter(
-					(c: {
-						type?: string;
-						text?: string;
-					}): c is { type: "text"; text: string } =>
-						c.type === "text" && typeof c.text === "string",
-				)
-				.map((c) => c.text)
-				.join("\n");
-			const normalized = normalizeWhitespace(text);
-			if (normalized) return normalized;
-		}
+		if (text.length >= MAX_PROMPT_CHARS) break;
 	}
 
-	return null;
+	const combined = parts.join("\n");
+	if (!combined) return null;
+	return { text: combined, full: combined.length >= MAX_PROMPT_CHARS };
 }
 
 // ── title generation ──────────────────────────────────────────────────────────
 
 async function generateTaskTitle(
 	ctx: ExtensionContext,
-	text: string,
+	context: { text: string; full: boolean },
 ): Promise<string | null> {
-	const candidatePrompt = normalizeWhitespace(text);
+	const candidatePrompt = normalizeWhitespace(context.text);
 	if (!candidatePrompt) return null;
 
 	const modelChoice = await pickModel(ctx);
 	if (!modelChoice) return null;
 
 	const { model, auth } = modelChoice;
-	const userPrompt = truncate(candidatePrompt, MAX_PROMPT_CHARS);
+	const systemPrompt = context.full
+		? NAMER_SYSTEM_PROMPT
+		: `${NAMER_SYSTEM_PROMPT}\n${NAMER_RETRY_HINT}`;
 	const repo = path.basename(ctx.cwd) || "session";
 	const messages: Message[] = [
 		{
@@ -160,7 +137,7 @@ async function generateTaskTitle(
 			content: [
 				{
 					type: "text",
-					text: `Repo: ${repo}\nUser prompt: ${userPrompt}`,
+					text: `Repo: ${repo}\nUser prompt: ${candidatePrompt}`,
 				},
 			],
 			timestamp: Date.now(),
@@ -169,7 +146,7 @@ async function generateTaskTitle(
 
 	const response = await complete(
 		model,
-		{ systemPrompt: NAMER_SYSTEM_PROMPT, messages },
+		{ systemPrompt, messages },
 		{
 			apiKey: auth.apiKey,
 			headers: auth.headers,
@@ -189,13 +166,11 @@ async function generateTaskTitle(
 // ── extension ─────────────────────────────────────────────────────────────────
 
 export default function sessionNamerExtension(pi: ExtensionAPI) {
-	const tryAutoName = once(async (ctx: ExtensionContext) => {
-		if (pi.getSessionName()) return;
-
-		const sourceText = getLatestUserText(ctx);
-		if (!sourceText) return;
-
-		const task = await generateTaskTitle(ctx, sourceText).catch((err) => {
+	const doAutoName = async (
+		context: { text: string; full: boolean },
+		ctx: ExtensionContext,
+	) => {
+		const task = await generateTaskTitle(ctx, context).catch((err) => {
 			if (ctx.hasUI) {
 				ctx.ui.notify(
 					`session-namer: model call failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -204,18 +179,16 @@ export default function sessionNamerExtension(pi: ExtensionAPI) {
 			}
 			return null;
 		});
-		const finalTask = task ?? heuristicTask(sourceText);
-		if (pi.getSessionName()) return;
-
-		pi.setSessionName(buildSessionName(ctx.cwd, finalTask));
-	});
+		if (!task || pi.getSessionName()) return;
+		pi.setSessionName(buildSessionName(task));
+	};
 
 	pi.registerCommand("name-auto", {
 		description:
 			"Generate and set a session name from the conversation context",
 		handler: async (_args, ctx) => {
-			const sourceText = getLatestUserText(ctx);
-			if (!sourceText) {
+			const context = getSessionContext(ctx);
+			if (!context) {
 				ctx.ui.notify(
 					"No user message found to generate a session name from",
 					"warning",
@@ -223,16 +196,16 @@ export default function sessionNamerExtension(pi: ExtensionAPI) {
 				return;
 			}
 
-			const task = await generateTaskTitle(ctx, sourceText).catch((err) => {
+			const task = await generateTaskTitle(ctx, context).catch((err) => {
 				ctx.ui.notify(
 					`Model call failed: ${err instanceof Error ? err.message : String(err)}`,
 					"warning",
 				);
 				return null;
 			});
-			const finalTask = task ?? heuristicTask(sourceText);
+			if (!task) return;
 
-			const name = buildSessionName(ctx.cwd, finalTask);
+			const name = buildSessionName(task);
 			pi.setSessionName(name);
 			ctx.ui.notify(`Session named: ${name}`, "info");
 		},
@@ -240,6 +213,8 @@ export default function sessionNamerExtension(pi: ExtensionAPI) {
 
 	pi.on("agent_end", async (_event, ctx) => {
 		if (pi.getSessionName()) return;
-		void tryAutoName(ctx);
+		const context = getSessionContext(ctx);
+		if (!context) return;
+		void doAutoName(context, ctx);
 	});
 }
