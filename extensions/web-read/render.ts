@@ -9,7 +9,7 @@
 import TurndownService from "turndown";
 import { Result } from "../../utils/monad/result";
 import { getSiteCache, writeSiteCache } from "./cache";
-import { WEB_READ_SETTINGS, fetchedDomains } from "./fetch";
+import { fetchedDomains, WEB_READ_SETTINGS } from "./fetch";
 import type { Site } from "./site";
 
 /** Lazy-loaded playwright-core module */
@@ -97,7 +97,10 @@ export async function renderPage(
 		const context = await browser.newContext();
 		const page = await context.newPage();
 
-		await page.goto(url.href, { waitUntil: "domcontentloaded", timeout: 30_000 });
+		await page.goto(url.href, {
+			waitUntil: "domcontentloaded",
+			timeout: 30_000,
+		});
 		// Give JS time to render content after initial load
 		await page.waitForTimeout(3_000);
 

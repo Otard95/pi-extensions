@@ -19,10 +19,7 @@ function getCachePath(url: URL, rendered = false): string {
 /**
  * Read a slice of the cached markdown file.
  */
-export function getSiteCache(
-	url: URL,
-	rendered = false,
-): Result<Option<Site>> {
+export function getSiteCache(url: URL, rendered = false): Result<Option<Site>> {
 	const path = getCachePath(url, rendered);
 	if (!existsSync(path)) return Result.Ok(Option.None());
 

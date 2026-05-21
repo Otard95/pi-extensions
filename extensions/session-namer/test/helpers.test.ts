@@ -79,7 +79,6 @@ describe("sanitizeModelTitle", () => {
 	});
 });
 
-
 describe("buildSessionName", () => {
 	it("returns the task directly", () => {
 		expect(buildSessionName("Fix auth")).toBe("Fix auth");
