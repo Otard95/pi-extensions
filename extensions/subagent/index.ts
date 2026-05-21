@@ -43,6 +43,45 @@ function buildDescription(agents: AgentConfig[]): string {
 		}
 	}
 
+	lines.push(
+		"",
+		"**Example:** Single task",
+		'{ "mode": "parallel", "tasks": [{ "agent": "scout", "taskDescription": "Find all error handling patterns in src/" }] }',
+		"",
+		"**Example:** Parallel tasks (tasks run concurrently)",
+		'{ "mode": "parallel", "tasks": [',
+		'  { "agent": "scout", "name": "api-layer", "taskDescription": "Map the API route structure in src/routes/" },',
+		'  { "agent": "scout", "name": "db-layer", "taskDescription": "Map the database models and queries in src/db/" }',
+		"] }",
+		"",
+		"**Example:** Sequential with {previous} (output of prior step is injected)",
+		'{ "mode": "sequential", "tasks": [',
+		'  { "agent": "scout", "taskDescription": "Find all usages of the deprecated parseConfig() function" },',
+		'  { "agent": "worker", "taskDescription": "Refactor the code found below to use the new loadConfig() API:\\n{previous}" }',
+		"] }",
+		"",
+		"**Example:** Nested groups (parallel recon, then sequential review)",
+		'{ "mode": "sequential", "tasks": [',
+		'  { "mode": "parallel", "tasks": [',
+		'    { "agent": "scout", "name": "frontend", "taskDescription": "Summarize the frontend architecture in src/ui/" },',
+		'    { "agent": "scout", "name": "backend", "taskDescription": "Summarize the backend architecture in src/server/" }',
+		"  ] },",
+		'  { "agent": "reviewer", "taskDescription": "Review the architecture for consistency issues:\\n{previous}" }',
+		"] }",
+		"",
+		"**When to use subagent:**",
+		"- Codebase recon before starting work (scout is cheap and fast)",
+		"- Isolated subtasks that would pollute your context (refactoring, migrations)",
+		"- Code review after making changes",
+		"- Parallel exploration of independent areas",
+		"- Multi-step workflows: gather → analyze → act",
+		"",
+		"**When NOT to use subagent:**",
+		"- Simple tool calls you can do directly (reading a file, running a command)",
+		"- Tasks that need your current conversation context",
+		"- When you need to interactively iterate with the user",
+	);
+
 	return lines.join("\n");
 }
 
