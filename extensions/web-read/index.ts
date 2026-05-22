@@ -1,4 +1,3 @@
-import { StringEnum } from "@mariozechner/pi-ai";
 import { type ExtensionAPI, keyHint } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
@@ -28,7 +27,7 @@ const WebReadParams = Type.Object({
 		Type.Boolean({ description: "Bypass cache and re-fetch the page" }),
 	),
 	render: Type.Optional(
-		StringEnum(["simple", "advanced"] as const, {
+		Type.Union([Type.Literal("simple"), Type.Literal("advanced")], {
 			description:
 				"Rendering method: 'simple' (default) uses plain fetch, " +
 				"'advanced' uses a headless browser for JS-heavy pages. " +
@@ -93,13 +92,13 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			// Normalize URL for the renderer path
-			const normalizedUrl = normalizeUrl(url);
+			const normalizedUrl = normalizeUrl(url ?? "");
 
 			// Fetch page: use playwright renderer or simple fetch
 			const fetchResult =
 				render === "advanced" && normalizedUrl.isOk()
 					? await renderPage(normalizedUrl.unwrap(), refresh)
-					: await fetchPage(url, refresh);
+					: await fetchPage(url ?? "", refresh);
 
 			const site = fetchResult.map((s) =>
 				s
