@@ -7,6 +7,7 @@ import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
 import {
 	aggregateUsage,
 	formatUsageStats,
+	getCompactSummaryLines,
 	getFinalOutput,
 	getMessageSummaryLines,
 } from "./format";
@@ -171,6 +172,7 @@ function renderSingleTask(
 	}
 
 	// Collapsed
+	const compactLines = r ? getCompactSummaryLines(r.messages) : [];
 	let text = `${icon} ${theme.fg("toolTitle", theme.bold(task.agent))}${theme.fg("muted", ` (${source})`)}`;
 	if (task.state === "error" && r?.stopReason)
 		text += ` ${theme.fg("error", `[${r.stopReason}]`)}`;
@@ -178,11 +180,11 @@ function renderSingleTask(
 		text += `\n${theme.fg("error", `Error: ${r.errorMessage}`)}`;
 	else if (task.state === "pending" || task.state === "running")
 		text += `\n${theme.fg("muted", task.state === "pending" ? "(pending)" : "(running...)")}`;
-	else if (summaryLines.length === 0)
+	else if (compactLines.length === 0)
 		text += `\n${theme.fg("muted", "(no output)")}`;
 	else {
-		text += `\n${renderSummaryLines(summaryLines, theme, COLLAPSED_ITEM_COUNT)}`;
-		if (summaryLines.length > COLLAPSED_ITEM_COUNT)
+		text += `\n${renderSummaryLines(compactLines, theme, COLLAPSED_ITEM_COUNT)}`;
+		if (compactLines.length > COLLAPSED_ITEM_COUNT)
 			text += `\n${theme.fg("muted", "(Ctrl+O to expand)")}`;
 	}
 	if (r) {
@@ -275,15 +277,15 @@ function renderMulti(
 	let text = `${icon} ${theme.fg("toolTitle", theme.bold(modeLabel))}${theme.fg("accent", status)}`;
 	for (const task of allTasks) {
 		const tIcon = taskStateIcon(task, theme);
-		const summaryLines = task.result
-			? getMessageSummaryLines(task.result.messages)
+		const compactLines = task.result
+			? getCompactSummaryLines(task.result.messages)
 			: [];
 		text += `\n\n${theme.fg("muted", "─── ")}${theme.fg("accent", task.agent)} ${tIcon}`;
 		if (task.state === "pending" || task.state === "running")
 			text += `\n${theme.fg("muted", task.state === "pending" ? "(pending)" : "(running...)")}`;
-		else if (summaryLines.length === 0)
+		else if (compactLines.length === 0)
 			text += `\n${theme.fg("muted", "(no output)")}`;
-		else text += `\n${renderSummaryLines(summaryLines, theme, 5)}`;
+		else text += `\n${renderSummaryLines(compactLines, theme, 5)}`;
 	}
 	if (!isRunning) {
 		const usageStr = formatUsageStats(aggregateUsage(collectResults(allTasks)));

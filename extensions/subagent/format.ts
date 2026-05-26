@@ -1,7 +1,10 @@
-import type { Message } from "@mariozechner/pi-ai";
+import type { Message, ToolResultMessage } from "@mariozechner/pi-ai";
 import { at } from "../../utils/array/at";
 import { last } from "../../utils/array/last";
-import { formatMessage } from "../../utils/conversation/messages";
+import {
+	formatMessage,
+	formatToolArgs,
+} from "../../utils/conversation/messages";
 import { isLiveTask, type LiveTask, type LiveTaskGroup } from "./schema";
 import type { SingleResult, UsageStats } from "./types";
 
@@ -51,9 +54,94 @@ export function getFinalOutput(messages: Message[]): string {
 	return "";
 }
 
-/** Format all messages into summary lines using the conversation utility. */
+/** Format all messages into full summary lines (for expanded view). */
 export function getMessageSummaryLines(messages: Message[]): string[] {
 	return messages.flatMap(formatMessage);
+}
+
+const COMPACT_MAX_LINES = 3;
+
+/** Compact a list-like output: show first N lines + "... X more". */
+function compactList(text: string): string {
+	const lines = text.split("\n").filter(Boolean);
+	if (lines.length <= COMPACT_MAX_LINES) return lines.join(", ");
+	const shown = lines.slice(0, COMPACT_MAX_LINES).join(", ");
+	return `${shown} ... +${lines.length - COMPACT_MAX_LINES} more`;
+}
+
+/** Compact tool result text based on tool type. */
+function compactToolResult(msg: ToolResultMessage): string {
+	const text = msg.content
+		.filter((c) => c.type === "text")
+		.map((c) => (c as { type: "text"; text: string }).text)
+		.join("");
+	const err = msg.isError ? " [ERROR]" : "";
+	const name = msg.toolName;
+
+	if (!text.trim()) return `[toolResult] ${name}${err}: (empty)`;
+
+	switch (name) {
+		case "ls":
+		case "find":
+			return `[toolResult] ${name}${err}: ${compactList(text)}`;
+
+		case "grep": {
+			const lines = text.split("\n").filter(Boolean);
+			if (lines.length <= COMPACT_MAX_LINES)
+				return `[toolResult] ${name}${err}: ${lines.join(" | ")}`;
+			const shown = lines.slice(0, COMPACT_MAX_LINES).join(" | ");
+			return `[toolResult] ${name}${err}: ${shown} ... +${lines.length - COMPACT_MAX_LINES} more`;
+		}
+
+		case "read": {
+			const lineCount = text.split("\n").length;
+			const firstLine = text.split("\n")[0]?.trim() ?? "";
+			const preview =
+				firstLine.length > 60 ? `${firstLine.slice(0, 60)}...` : firstLine;
+			return `[toolResult] ${name}${err}: ${preview} (${lineCount} lines)`;
+		}
+
+		case "bash": {
+			const lines = text.split("\n");
+			const firstLine = lines[0]?.trim() ?? "";
+			const preview =
+				firstLine.length > 60 ? `${firstLine.slice(0, 60)}...` : firstLine;
+			if (lines.length <= 1) return `[toolResult] ${name}${err}: ${preview}`;
+			return `[toolResult] ${name}${err}: ${preview} (${lines.length} lines)`;
+		}
+
+		default: {
+			const preview = text.length > 80 ? `${text.slice(0, 80)}...` : text;
+			return `[toolResult] ${name}${err}: ${preview.replace(/\n/g, " ")}`;
+		}
+	}
+}
+
+/** Format a message compactly for collapsed view. */
+function formatMessageCompact(msg: Message): string[] {
+	// Skip user messages — the task is already shown in the header
+	if (msg.role === "user") return [];
+
+	// Compact tool results
+	if (msg.role === "toolResult") return [compactToolResult(msg)];
+
+	// Assistant: show toolCall lines, skip text (final output shown separately)
+	if (msg.role === "assistant") {
+		const lines: string[] = [];
+		for (const block of msg.content) {
+			if (block.type === "toolCall") {
+				lines.push(`[toolCall] ${formatToolArgs(block.name, block.arguments)}`);
+			}
+		}
+		return lines;
+	}
+
+	return formatMessage(msg);
+}
+
+/** Format messages compactly for collapsed view. */
+export function getCompactSummaryLines(messages: Message[]): string[] {
+	return messages.flatMap(formatMessageCompact);
 }
 
 /**
