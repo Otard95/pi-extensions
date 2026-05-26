@@ -184,8 +184,14 @@ function renderSingleTask(
 		text += `\n${theme.fg("muted", "(no output)")}`;
 	else {
 		text += `\n${renderSummaryLines(compactLines, theme, COLLAPSED_ITEM_COUNT)}`;
-		if (compactLines.length > COLLAPSED_ITEM_COUNT)
-			text += `\n${theme.fg("muted", "(Ctrl+O to expand)")}`;
+	}
+	if (finalOutput) {
+		const allLines = finalOutput.trim().split("\n");
+		const previewLines = allLines.slice(0, 15);
+		text += `\n${theme.fg("muted", "─── Result ───")}`;
+		text += `\n${theme.fg("toolOutput", previewLines.join("\n"))}`;
+		if (allLines.length > 15)
+			text += `\n${theme.fg("muted", `... (${allLines.length - 15} more lines, ctrl+o to expand)`)}`;
 	}
 	if (r) {
 		const usageStr = formatUsageStats(r.usage, r.model);
