@@ -178,9 +178,13 @@ function renderSingleTask(
 		text += ` ${theme.fg("error", `[${r.stopReason}]`)}`;
 	if (task.state === "error" && r?.errorMessage)
 		text += `\n${theme.fg("error", `Error: ${r.errorMessage}`)}`;
-	else if (task.state === "pending" || task.state === "running")
-		text += `\n${theme.fg("muted", task.state === "pending" ? "(pending)" : "(running...)")}`;
-	else if (compactLines.length === 0)
+	else if (task.state === "pending")
+		text += `\n${theme.fg("muted", "(pending)")}`;
+	else if (task.state === "running") {
+		if (compactLines.length > 0)
+			text += `\n${renderSummaryLines(compactLines, theme, COLLAPSED_ITEM_COUNT)}`;
+		text += `\n${theme.fg("muted", "(running...")}`;
+	} else if (compactLines.length === 0)
 		text += `\n${theme.fg("muted", "(no output)")}`;
 	else {
 		text += `\n${renderSummaryLines(compactLines, theme, COLLAPSED_ITEM_COUNT)}`;
@@ -287,9 +291,12 @@ function renderMulti(
 			? getCompactSummaryLines(task.result.messages)
 			: [];
 		text += `\n\n${theme.fg("muted", "─── ")}${theme.fg("accent", task.agent)} ${tIcon}`;
-		if (task.state === "pending" || task.state === "running")
-			text += `\n${theme.fg("muted", task.state === "pending" ? "(pending)" : "(running...)")}`;
-		else if (compactLines.length === 0)
+		if (task.state === "pending") text += `\n${theme.fg("muted", "(pending)")}`;
+		else if (task.state === "running") {
+			if (compactLines.length > 0)
+				text += `\n${renderSummaryLines(compactLines, theme, 5)}`;
+			text += `\n${theme.fg("muted", "(running...")}`;
+		} else if (compactLines.length === 0)
 			text += `\n${theme.fg("muted", "(no output)")}`;
 		else text += `\n${renderSummaryLines(compactLines, theme, 5)}`;
 	}
