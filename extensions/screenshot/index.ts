@@ -11,7 +11,7 @@
  *
  * Currently implemented:
  *   - Layout: Hyprland (hyprctl)
- *   - Capture: Grimblast/grim (wlroots Wayland)
+ *   - Capture: grim, Grimblast (wlroots Wayland)
  */
 
 import { readFile, unlink } from "node:fs/promises";
@@ -24,6 +24,7 @@ import {
 import { Text } from "@mariozechner/pi-tui";
 import { type Static, Type as T } from "@sinclair/typebox";
 import { loadSettings } from "../../utils/settings.js";
+import { grimCapture } from "./capture/grim.js";
 import { grimblastCapture } from "./capture/grimblast.js";
 import { hyprlandLayout } from "./layout/hyprland.js";
 import type {
@@ -77,7 +78,7 @@ function isExcluded(
 // ── Provider Registries ───────────────────────────────────────────────────────
 
 const layoutProviders: LayoutProvider[] = [hyprlandLayout];
-const captureProviders: CaptureProvider[] = [grimblastCapture];
+const captureProviders: CaptureProvider[] = [grimCapture, grimblastCapture];
 
 async function resolveProvider<
 	T extends { name: string; isCompatible(): Promise<boolean> },
