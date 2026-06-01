@@ -31,24 +31,27 @@ const MAX_SESSION_NAME_LENGTH = 72;
 const MAX_PROMPT_CHARS = 600;
 
 // Instructions sent to the lightweight naming model.
-const NAMER_SYSTEM_PROMPT = `Generate a short coding session title from the user's message(s).
+const NAMER_SYSTEM_PROMPT = `You generate short coding session titles.
 
-Rules:
-- Return only the title text
-- 3 to 6 words preferred
-- Use sentence case
-- Be concrete and task-focused
-- No quotes
-- No markdown
-- No trailing punctuation
-- Avoid vague filler like "Help with" or "Work on"
-- Prefer concrete engineering verbs like Fix, Add, Refactor, Review, Debug, Investigate, Improve
-- If the messages contain only meta-instructions, mode/persona setup, or style rules
-  with no concrete task, ignore this, and do NOT use it as part of the title
-- INSUFFICIENT_CONTEXT: if there is not enough context to determine a concrete task`;
+You have exactly two allowed outputs:
+
+1. A title — when the messages contain a clear, concrete task:
+   - 3 to 6 words
+   - Sentence case
+   - No quotes, no markdown, no trailing punctuation
+   - Concrete and task-focused
+   - No vague filler like "Help with" or "Work on"
+   - Prefer engineering verbs: Fix, Add, Refactor, Review, Debug, Investigate, Improve
+
+2. An empty response — when there is no concrete task yet:
+   - Only meta-instructions, mode/persona setup, or style rules with no real task
+   - Not enough information to determine what the user wants to accomplish
+   - Output nothing at all — not a word, not a label, just empty
+
+Do not explain your choice. Do not output any other format.`;
 
 const NAMER_RETRY_HINT =
-	"- If context is insufficient, return nothing — this will be retried once more context is available";
+	"Note: if the context is insufficient, output nothing — the title will be generated again once more context is available.";
 
 // ── pure helpers (exported for tests) ─────────────────────────────────────────
 
