@@ -1,10 +1,15 @@
 /**
  * Voice Input Extension
  *
- * Ctrl+. → Record & transcribe voice input
+ * Ctrl+.  → Record & transcribe voice input
+ * Alt+.   → Toggle cleanup agent on/off (configurable via "ext.voiceInput.toggleCleanup" in keybindings.json)
+ *
+ * Recordings are serial (one at a time), but transcription+cleanup jobs run in
+ * parallel and are consumed in order via TranscriptionQueue.
  */
 
 import type { ChildProcess } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,13 +17,27 @@ import type {
 	ExtensionAPI,
 	ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
+import { getAgentDir } from "@mariozechner/pi-coding-agent";
+import type { KeyId } from "@mariozechner/pi-tui";
 import { createAudioRecorder } from "./audio-recorder.js";
-import { cleanupTranscript } from "./cleanup.js";
 import { findWhisperModel, getRecommendedModelPath } from "./model-finder.js";
-import { loadSettings } from "./settings.js";
-import { transcribe } from "./transcriber.js";
+import { type JobResult, TranscriptionQueue } from "./queue.js";
+import { loadSettings, type VoiceInputSettings } from "./settings.js";
 
 const audioRecorder = createAudioRecorder();
+const queue = new TranscriptionQueue();
+
+/**
+ * Runtime cleanup toggle. null = follow settings, otherwise overrides
+ * settings.cleanup.enabled for the duration of the session.
+ */
+let cleanupEnabledOverride: boolean | null = null;
+
+/** Guarded so only one consumer loop runs at a time. */
+let consuming = false;
+
+let recordingProcess: ChildProcess | null = null;
+let recordingFile: string | null = null;
 
 /** Transcription event history for debugging */
 interface TranscriptionEvent {
@@ -36,16 +55,36 @@ interface TranscriptionEvent {
 }
 
 const transcriptionHistory: TranscriptionEvent[] = [];
-let recordingProcess: ChildProcess | null = null;
-let recordingFile: string | null = null;
 
-// ── Recording Functions ───────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-async function startRecording(ctx: ExtensionContext): Promise<string> {
+function loadKeybindings(): Record<string, string | string[]> {
+	const kbPath = join(getAgentDir(), "keybindings.json");
+	if (!existsSync(kbPath)) return {};
+	try {
+		const raw = JSON.parse(readFileSync(kbPath, "utf-8"));
+		if (typeof raw === "object" && raw !== null && !Array.isArray(raw))
+			return raw;
+	} catch {}
+	return {};
+}
+
+function applyCleanupOverride(
+	settings: VoiceInputSettings,
+): VoiceInputSettings {
+	if (cleanupEnabledOverride === null) return settings;
+	return {
+		...settings,
+		cleanup: { ...settings.cleanup, enabled: cleanupEnabledOverride },
+	};
+}
+
+// ── Recording ─────────────────────────────────────────────────────────────────
+
+async function startRecording(ctx: ExtensionContext): Promise<void> {
 	const tempDir = await mkdtemp(join(tmpdir(), "voice-"));
 	const audioFile = join(tempDir, "recording.wav");
 
-	// Use platform-specific recorder
 	recordingProcess = await audioRecorder.startRecording(audioFile);
 
 	recordingProcess.on("error", (err) => {
@@ -57,32 +96,75 @@ async function startRecording(ctx: ExtensionContext): Promise<string> {
 	recordingFile = audioFile;
 	ctx.ui.notify(`🎤 Recording to: ${audioFile}`, "info");
 	ctx.ui.setStatus("voice-input", "🎤 Recording...");
-
-	return audioFile;
 }
 
 async function stopRecording(): Promise<void> {
-	if (!recordingProcess) {
-		return;
-	}
-
+	if (!recordingProcess) return;
 	const process = recordingProcess;
 	recordingProcess = null;
-
-	// Use platform-specific stop logic
 	await audioRecorder.stopRecording(process);
+}
+
+// ── Queue consumer ────────────────────────────────────────────────────────────
+
+function pushHistory(result: JobResult): void {
+	transcriptionHistory.push({
+		timestamp: Date.now(),
+		raw: result.raw,
+		cleaned: result.text,
+		cleanupAttempted: result.cleanupAttempted,
+		cleanupModelId: result.cleanupModelId,
+		cleanupProvider: result.cleanupProvider,
+		cleanupSelection: result.cleanupSelection,
+		cleanupDurationMs: result.cleanupDurationMs,
+		cleanupChanged: result.cleanupChanged,
+		cleanupCharDiff: result.cleanupCharDiff,
+		cleanupError: result.error,
+	});
+	if (transcriptionHistory.length > 10) transcriptionHistory.shift();
+}
+
+async function consumeQueue(ctx: ExtensionContext): Promise<void> {
+	if (consuming) return;
+	consuming = true;
+
+	let result: JobResult | null;
+	while ((result = await queue.next()) !== null) {
+		pushHistory(result);
+
+		if (result.error === "empty transcript") {
+			await unlink(result.file).catch(() => {});
+			continue;
+		}
+
+		if (result.error && !result.text) {
+			ctx.ui.notify(
+				`❌ Transcription failed: ${result.error}. Recording kept: ${result.file}`,
+				"error",
+			);
+			continue;
+		}
+
+		if (result.text) {
+			await unlink(result.file).catch(() => {});
+			ctx.ui.pasteToEditor(result.text);
+			ctx.ui.notify("✅ Transcribed", "info");
+		} else {
+			ctx.ui.notify(`⚠️ No speech detected. Check: ${result.file}`, "warning");
+		}
+	}
+
+	ctx.ui.setStatus("voice-input", undefined);
+	consuming = false;
 }
 
 // ── Extension Setup ────────────────────────────────────────────────────────────
 
 export default function (pi: ExtensionAPI) {
-	// Main voice input shortcut - record & transcribe
 	pi.registerShortcut("ctrl+.", {
 		description: "Voice input (record & transcribe)",
 		handler: async (ctx) => {
-			// Toggle recording
 			if (recordingProcess) {
-				// Stop recording & transcribe
 				ctx.ui.setStatus("voice-input", "🔄 Stopping...");
 				await stopRecording();
 
@@ -92,71 +174,43 @@ export default function (pi: ExtensionAPI) {
 					return;
 				}
 
-				const savedFile = recordingFile;
-				ctx.ui.notify(`💾 Recording saved: ${savedFile}`, "info");
+				const file = recordingFile;
+				recordingFile = null;
 
-				try {
-					const settings = loadSettings();
-					const rawText = await transcribe(recordingFile, settings, ctx);
-					recordingFile = null;
-
-					// TODO: Implement streaming - transcribe → cleanup could stream
-					// Currently sequential: audio → whisper → wait → LLM cleanup → wait → insert
-					// Ideal: audio → whisper (streaming) → LLM cleanup (streaming) → insert chunks
-
-					// Clean up transcript with LLM (uses conversation context)
-					ctx.ui.setStatus("voice-input", "🔄 Cleaning up transcription...");
-					const cleanup = await cleanupTranscript(rawText, settings, ctx);
-					const text = cleanup.text;
-
-					// Store event for debugging
-					transcriptionHistory.push({
-						timestamp: Date.now(),
-						raw: rawText,
-						cleaned: text,
-						cleanupAttempted: cleanup.attempted,
-						cleanupModelId: cleanup.modelId,
-						cleanupProvider: cleanup.provider,
-						cleanupSelection: cleanup.selection,
-						cleanupDurationMs: cleanup.durationMs,
-						cleanupChanged: cleanup.changed,
-						cleanupCharDiff: cleanup.charDiff,
-						cleanupError: cleanup.error,
-					});
-					// Keep only last 10 events
-					if (transcriptionHistory.length > 10) {
-						transcriptionHistory.shift();
-					}
-
-					ctx.ui.setStatus("voice-input", undefined);
-					if (text) {
-						// Success - clean up file
-						await unlink(savedFile);
-						ctx.ui.pasteToEditor(text);
-						ctx.ui.notify("✅ Transcribed", "info");
-					} else {
-						// No speech - keep file for debugging
-						ctx.ui.notify(
-							`⚠️ No speech detected. Check: ${savedFile}`,
-							"warning",
-						);
-					}
-				} catch (err) {
-					ctx.ui.setStatus("voice-input", undefined);
-					ctx.ui.notify(
-						`❌ Error: ${err}. Recording kept: ${savedFile}`,
-						"error",
-					);
-					recordingFile = null;
-				}
+				const settings = applyCleanupOverride(loadSettings());
+				queue.enqueue(file, settings, ctx);
+				ctx.ui.setStatus(
+					"voice-input",
+					`🔄 Transcribing... (${queue.size} queued)`,
+				);
+				consumeQueue(ctx);
 			} else {
-				// Start recording
 				try {
 					await startRecording(ctx);
 				} catch (err) {
 					ctx.ui.notify(`❌ Recording failed: ${err}`, "error");
 				}
 			}
+		},
+	});
+
+	// Keybind to toggle cleanup on/off at runtime.
+	// Override the default via "ext.voiceInput.toggleCleanup" in keybindings.json.
+	const userBindings = loadKeybindings();
+	const toggleCleanupKey = (userBindings["ext.voiceInput.toggleCleanup"] ??
+		"alt+.") as KeyId;
+
+	pi.registerShortcut(toggleCleanupKey, {
+		description: "Toggle voice input cleanup agent on/off",
+		handler: (ctx) => {
+			const settings = loadSettings();
+			const current =
+				cleanupEnabledOverride ?? settings.cleanup?.enabled ?? true;
+			cleanupEnabledOverride = !current;
+			ctx.ui.notify(
+				`🧹 Cleanup ${cleanupEnabledOverride ? "enabled" : "disabled"}`,
+				"info",
+			);
 		},
 	});
 
@@ -169,49 +223,16 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			const filePath = args.trim();
-			ctx.ui.notify(`💾 Transcribing: ${filePath}`, "info");
+			const file = args.trim();
+			ctx.ui.notify(`💾 Transcribing: ${file}`, "info");
 
-			try {
-				const settings = loadSettings();
-				const rawText = await transcribe(filePath, settings, ctx);
-
-				// Clean up transcript
-				ctx.ui.setStatus("voice-input", "🔄 Cleaning up transcription...");
-				const cleanup = await cleanupTranscript(rawText, settings, ctx);
-				const text = cleanup.text;
-
-				// Store event for debugging
-				transcriptionHistory.push({
-					timestamp: Date.now(),
-					raw: rawText,
-					cleaned: text,
-					cleanupAttempted: cleanup.attempted,
-					cleanupModelId: cleanup.modelId,
-					cleanupProvider: cleanup.provider,
-					cleanupSelection: cleanup.selection,
-					cleanupDurationMs: cleanup.durationMs,
-					cleanupChanged: cleanup.changed,
-					cleanupCharDiff: cleanup.charDiff,
-					cleanupError: cleanup.error,
-				});
-				// Keep only last 10 events
-				if (transcriptionHistory.length > 10) {
-					transcriptionHistory.shift();
-				}
-
-				ctx.ui.setStatus("voice-input", undefined);
-
-				if (text) {
-					ctx.ui.pasteToEditor(text);
-					ctx.ui.notify(`✅ Transcribed: "${text}"`, "info");
-				} else {
-					ctx.ui.notify("⚠️ No speech detected", "warning");
-				}
-			} catch (err) {
-				ctx.ui.setStatus("voice-input", undefined);
-				ctx.ui.notify(`❌ Error: ${err}`, "error");
-			}
+			const settings = applyCleanupOverride(loadSettings());
+			queue.enqueue(file, settings, ctx);
+			ctx.ui.setStatus(
+				"voice-input",
+				`🔄 Transcribing... (${queue.size} queued)`,
+			);
+			consumeQueue(ctx);
 		},
 	});
 
@@ -224,7 +245,6 @@ export default function (pi: ExtensionAPI) {
 
 			let msg = "Voice Input Configuration:\n\n";
 
-			// Model path
 			if (settings.modelPath) {
 				msg += `Model: ${settings.modelPath} (settings.json)\n`;
 			} else {
@@ -238,7 +258,6 @@ export default function (pi: ExtensionAPI) {
 				}
 			}
 
-			// Custom search paths
 			if (settings.modelSearchPaths?.length) {
 				msg += `\nCustom search paths:\n`;
 				for (const path of settings.modelSearchPaths) {
@@ -247,6 +266,7 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			msg += `\nRecommended install location: ${recommended}`;
+			msg += `\nCleanup: ${cleanupEnabledOverride !== null ? `${cleanupEnabledOverride} (runtime override)` : `${settings.cleanup?.enabled ?? true} (from settings)`}`;
 
 			ctx.ui.notify(msg, "info");
 		},
