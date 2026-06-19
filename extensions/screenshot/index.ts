@@ -12,6 +12,7 @@
  * Currently implemented:
  *   - Layout: Hyprland (hyprctl)
  *   - Capture: grim, Grimblast (wlroots Wayland)
+ *   - Resize: ImageMagick, FFmpeg
  */
 
 import { readFile, unlink } from "node:fs/promises";
@@ -27,12 +28,15 @@ import { loadSettings } from "../../utils/settings.js";
 import { grimCapture } from "./capture/grim.js";
 import { grimblastCapture } from "./capture/grimblast.js";
 import { hyprlandLayout } from "./layout/hyprland.js";
+import { ffmpegResize } from "./resize/ffmpeg.js";
+import { imagemagickResize } from "./resize/imagemagick.js";
 import type {
 	CaptureProvider,
 	LayoutProvider,
 	LayoutResult,
 	MonitorInfo,
 	Rect,
+	ResizeProvider,
 	WindowInfo,
 } from "./types.js";
 
@@ -79,6 +83,7 @@ function isExcluded(
 
 const layoutProviders: LayoutProvider[] = [hyprlandLayout];
 const captureProviders: CaptureProvider[] = [grimCapture, grimblastCapture];
+const resizeProviders: ResizeProvider[] = [imagemagickResize, ffmpegResize];
 
 async function resolveProvider<
 	T extends { name: string; isCompatible(): Promise<boolean> },
@@ -134,7 +139,7 @@ function formatLayout(layout: LayoutResult): string {
 		lines.push("Monitors:");
 		for (const m of layout.monitors) {
 			lines.push(
-				`  ${m.name} (${m.rect.width}x${m.rect.height}, workspace ${m.activeWorkspace})`,
+				`  ${m.name} (${m.rect.width}x${m.rect.height} at ${m.rect.x},${m.rect.y}, workspace ${m.activeWorkspace})`,
 			);
 		}
 		lines.push("");
@@ -184,6 +189,8 @@ function errorResult(
 	return { content: [{ type: "text", text }], isError: true, details };
 }
 
+const MAX_DIMENSION = 2000;
+
 async function captureToImage(
 	capture: CaptureProvider,
 	target: Rect | "all",
@@ -192,6 +199,11 @@ async function captureToImage(
 		target === "all"
 			? await capture.captureAll()
 			: await capture.captureRegion(target);
+
+	const resizer = await resolveProvider(resizeProviders);
+	if (resizer) {
+		await resizer.resize(result.path, MAX_DIMENSION);
+	}
 
 	const imageData = await readFile(result.path);
 	const base64 = imageData.toString("base64");

@@ -1,7 +1,7 @@
 /**
  * Screenshot Extension – shared types
  *
- * Strategy interfaces for layout (window listing) and capture providers.
+ * Strategy interfaces for layout (window listing), capture, and resize providers.
  * Each provider self-reports compatibility and caches the result.
  */
 
@@ -66,4 +66,14 @@ export interface CaptureProvider {
 	captureRegion(rect: Rect): Promise<CaptureResult>;
 	/** Capture the entire desktop (all outputs) */
 	captureAll(): Promise<CaptureResult>;
+}
+
+// ── Resize Provider ──────────────────────────────────────────────────────────
+
+export interface ResizeProvider {
+	readonly name: string;
+	/** Resolve binaries, check env. Caches result after first call. */
+	isCompatible(): Promise<boolean>;
+	/** Downscale an image so neither dimension exceeds maxDimension. No-op if already within bounds. */
+	resize(path: string, maxDimension: number): Promise<string>;
 }
