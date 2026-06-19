@@ -97,6 +97,9 @@ export default function (pi: ExtensionAPI) {
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
 			const mode = params["mode"] as "parallel" | "sequential";
 			const tasks = params["tasks"] as (Task | TaskGroup)[] | undefined;
+			const toolSnippets = Object.fromEntries(
+				pi.getAllTools().map((t) => [t.name, t.description]),
+			);
 			const discovery = discoverAgents(ctx.cwd, "both");
 			const agents = discovery.agents;
 
@@ -144,6 +147,7 @@ export default function (pi: ExtensionAPI) {
 				agents,
 				signal,
 				notify,
+				toolSnippets,
 			);
 
 			const finalText = collectFinalOutput(root);

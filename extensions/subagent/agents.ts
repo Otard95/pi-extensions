@@ -12,6 +12,7 @@ export interface AgentConfig {
 	name: string;
 	description: string;
 	tools?: string[];
+	extensions?: string[];
 	model?: string;
 	systemPrompt: string;
 	source: "user" | "project";
@@ -64,10 +65,16 @@ function loadAgentsFromDir(
 			.map((t: string) => t.trim())
 			.filter(Boolean);
 
+		const extensions = frontmatter["extensions"]
+			?.split(",")
+			.map((e: string) => e.trim())
+			.filter(Boolean);
+
 		agents.push({
 			name: frontmatter["name"],
 			description: frontmatter["description"],
 			tools: tools && tools.length > 0 ? tools : undefined,
+			extensions: extensions && extensions.length > 0 ? extensions : undefined,
 			model: frontmatter["model"],
 			systemPrompt: body,
 			source,

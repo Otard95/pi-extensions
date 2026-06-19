@@ -23,6 +23,7 @@ export async function executeGroup(
 	agents: AgentConfig[],
 	signal: AbortSignal | undefined,
 	notify: () => void,
+	toolSnippets: Record<string, string>,
 	previous?: string,
 ): Promise<{ isError: boolean; errorMessage?: string }> {
 	const totalTasks = countTasks(group);
@@ -34,9 +35,25 @@ export async function executeGroup(
 	}
 
 	if (group.mode === "parallel") {
-		return executeParallel(group, defaultCwd, agents, signal, notify, previous);
+		return executeParallel(
+			group,
+			defaultCwd,
+			agents,
+			signal,
+			notify,
+			toolSnippets,
+			previous,
+		);
 	}
-	return executeSequential(group, defaultCwd, agents, signal, notify, previous);
+	return executeSequential(
+		group,
+		defaultCwd,
+		agents,
+		signal,
+		notify,
+		toolSnippets,
+		previous,
+	);
 }
 
 // -- Parallel ----------------------------------------------------------------
@@ -47,14 +64,30 @@ async function executeParallel(
 	agents: AgentConfig[],
 	signal: AbortSignal | undefined,
 	notify: () => void,
+	toolSnippets: Record<string, string>,
 	previous?: string,
 ): Promise<{ isError: boolean }> {
 	await mapWithConcurrencyLimit(group.tasks, MAX_CONCURRENCY, async (item) => {
 		if (isLiveTask(item)) {
 			applyPrevious(item, previous);
-			await runSingleAgent(defaultCwd, agents, item, signal, notify);
+			await runSingleAgent(
+				defaultCwd,
+				agents,
+				item,
+				signal,
+				notify,
+				toolSnippets,
+			);
 		} else {
-			await executeGroup(item, defaultCwd, agents, signal, notify, previous);
+			await executeGroup(
+				item,
+				defaultCwd,
+				agents,
+				signal,
+				notify,
+				toolSnippets,
+				previous,
+			);
 		}
 	});
 
@@ -71,6 +104,7 @@ async function executeSequential(
 	agents: AgentConfig[],
 	signal: AbortSignal | undefined,
 	notify: () => void,
+	toolSnippets: Record<string, string>,
 	previous?: string,
 ): Promise<{ isError: boolean; errorMessage?: string }> {
 	let prev = previous;
@@ -78,7 +112,14 @@ async function executeSequential(
 	for (const item of group.tasks) {
 		if (isLiveTask(item)) {
 			applyPrevious(item, prev);
-			await runSingleAgent(defaultCwd, agents, item, signal, notify);
+			await runSingleAgent(
+				defaultCwd,
+				agents,
+				item,
+				signal,
+				notify,
+				toolSnippets,
+			);
 
 			if (item.state === "error") {
 				const r = item.result;
@@ -95,6 +136,7 @@ async function executeSequential(
 				agents,
 				signal,
 				notify,
+				toolSnippets,
 				prev,
 			);
 			if (nested.isError) return nested;

@@ -58,17 +58,11 @@ export async function mapWithConcurrencyLimit<TIn, TOut>(
 
 // -- System prompt -----------------------------------------------------------
 
-const toolSnippets: Record<string, string> = {
-	read: "Read file contents",
-	bash: "Execute bash commands (ls, grep, find, etc.)",
-	edit: "Make precise file edits with exact text replacement",
-	write: "Create or overwrite files",
-	grep: "Search file contents for patterns (respects .gitignore)",
-	find: "Find files by glob pattern (respects .gitignore)",
-	ls: "List directory contents",
-};
-
-function buildSubagentPrompt(agent: AgentConfig, cwd: string): string {
+function buildSubagentPrompt(
+	agent: AgentConfig,
+	cwd: string,
+	toolSnippets: Record<string, string>,
+): string {
 	const parts: string[] = [];
 
 	if (agent.systemPrompt.trim()) {
@@ -102,6 +96,7 @@ export async function runSingleAgent(
 	liveTask: LiveTask,
 	signal: AbortSignal | undefined,
 	notify: () => void,
+	toolSnippets: Record<string, string>,
 ): Promise<void> {
 	const agent = agents.find((a) => a.name === liveTask.agent);
 
@@ -149,10 +144,23 @@ export async function runSingleAgent(
 		const loader = new DefaultResourceLoader({
 			cwd: effectiveCwd,
 			agentDir,
-			noExtensions: true,
 			noPromptTemplates: true,
 			noThemes: true,
-			systemPromptOverride: () => buildSubagentPrompt(agent, effectiveCwd),
+			noExtensions: !agent.extensions,
+			extensionsOverride: agent.extensions
+				? (base) => ({
+						...base,
+						extensions: base.extensions.filter((ext) =>
+							agent.extensions!.some(
+								(name) =>
+									ext.resolvedPath.includes(`/${name}/`) ||
+									ext.resolvedPath.endsWith(`/${name}.ts`),
+							),
+						),
+					})
+				: undefined,
+			systemPromptOverride: () =>
+				buildSubagentPrompt(agent, effectiveCwd, toolSnippets),
 		});
 		await loader.reload();
 
