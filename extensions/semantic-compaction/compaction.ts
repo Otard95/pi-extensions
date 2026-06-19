@@ -129,12 +129,9 @@ async function compactToolGroup(
 		{ role: "user", content: userMessage, timestamp: Date.now() } as Message,
 	];
 
-	const response = await complete(
-		choice,
-		COMPACTION_SYSTEM_PROMPT,
-		messages,
+	const response = await complete(choice, COMPACTION_SYSTEM_PROMPT, messages, {
 		signal,
-	);
+	});
 
 	const compacted = response.content
 		.filter((c): c is { type: "text"; text: string } => c.type === "text")

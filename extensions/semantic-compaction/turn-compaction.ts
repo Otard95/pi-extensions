@@ -1,10 +1,10 @@
 import type { Message } from "@mariozechner/pi-ai";
 import type {
 	ExtensionCommandContext,
-	ExtensionContext,
 	SessionEntry,
 } from "@mariozechner/pi-coding-agent";
 import { at } from "../../utils/array/at";
+import { settledPool } from "../../utils/async/pool";
 import { complete } from "../../utils/model/complete";
 import { pickModel } from "../../utils/model/pick";
 import { groupTurns, splitIntoTurns, type TurnGroup } from "./analysis";
@@ -27,71 +27,50 @@ const TURN_COMPACTION_PREFERRED: ReadonlyArray<readonly [string, string]> = [
 
 // --- System prompt ---
 
-const TURN_COMPACTION_SYSTEM_PROMPT = `You are a conversation compaction agent. You compress conversation turns into terse structured summaries that preserve all technical substance while removing noise.
+const TURN_COMPACTION_SYSTEM_PROMPT = `You are a conversation compaction agent. You compress conversation turns into terse structured summaries.
 
-## Goal
+You will receive a conversation between a user and an AI coding assistant containing messages, thinking blocks, tool calls, and tool results. Produce a structured summary following the EXACT format below.
 
-Produce a summary that a developer (or AI agent) can read later and understand: what was asked, what was done, what was decided, and what changed. The summary should be dense but not lossy — every piece of meaningful information survives in compressed form.
+Do NOT continue the conversation. Do NOT respond to any questions in the conversation. ONLY output the structured summary.
 
-## Guiding principle
+## Hard rules
 
-The rules and examples below describe our intent, not an exhaustive list. Apply this principle throughout: if removing or compressing something would cause a reader to lose understanding of what happened or why, keep it. If it's redundant with what the actions and outcomes already show, remove it.
-
-## What to remove
-
-Remove content that adds no information beyond what the actions and outcomes already convey:
-
-- **Thinking blocks where the conclusion is already reflected in the assistant's actions or response.** Most thinking falls into this category — the assistant reasons through something, then acts on it. The action speaks for itself. However, if thinking contains a realization that changed direction, a correction based on earlier mistakes, or reasoning behind a non-obvious decision, that insight should be preserved in the summary (not the full thinking block, but the key takeaway).
-
-- **Filler and pleasantries.** Phrases like "Let me check", "Good idea!", "Sure!", "Let me fix that", "Here's what I found" carry no information.
-
-- **Tool failures that were immediately retried with the same intent.** If an edit failed because the match text was wrong, and the assistant read the file and retried successfully, only the success matters. But if a failure revealed something unexpected — a wrong assumption, a missing file, an API that doesn't work as expected — that discovery is meaningful and should be noted.
-
-- **Repetitive cycles.** If the assistant ran type checking, got errors, fixed them, and ran checks again multiple times, compress to the final state: what errors were found and that they were resolved. The individual check-fix-check iterations are noise.
-
-## What to compress
-
-Reduce to core substance. Fragments OK. Use arrows for causality (X → Y).
-
-- **User messages**: The core request, correction, or instruction. Drop conversational framing.
-- **Assistant responses**: Decisions made, approaches chosen, things explained to the user. Not the full explanation — just the key points.
-- **Tool outcomes**: What was learned, found, or changed. Not raw output.
-
-## What to keep verbatim
-
-Some content must survive exactly as-is because paraphrasing would lose precision:
-
-- **Pre-compacted tool summaries** ([tool-compaction] entries): Already compressed by a previous pass. Include as-is.
-- **File paths that are relevant to the work**: Paths of files that were read, edited, created, or are the subject of discussion. If the agent searched or listed files to find something, include the path of what was found, not every path that was searched. Use judgment — the path matters when it identifies something the developer would need to locate later.
-- **Specific values, names, and identifiers**: Config values, model names, error codes, version numbers, command flags — anything where the exact value matters.
-- **Error messages that led to a fix or decision**: Keep the error (not the full stack trace), because it explains why something was changed.
-- **Decisions and their rationale**: "Chose X over Y because Z" — both the choice and the reason. Negative decisions too ("decided against X because Y").
+1. NEVER fabricate content. If a user message doesn't exist in the input, do NOT invent one.
+2. NEVER include thinking blocks in output. If thinking revealed a non-obvious decision or direction change, extract ONE line into Decisions.
+3. NEVER reproduce code. Describe what was written/changed.
+4. NEVER reproduce raw tool output. Distill to what was learned.
+5. Output MUST be <20% of input length.
 
 ## Output format
 
-Use [user] / [assistant] / [tools] blocks as many times as needed to capture the exchange. One [outcome] block at the end covering the entire summary.
+Fill in ONLY these fields. Leave a field blank if not applicable. Do NOT add any other content.
 
-[user] <core request — terse, fragments OK>
-[assistant] <decisions, actions, key explanations>
-[tools]
-  <meaningful tool interactions — one line per tool or group>
-[outcome] <what changed, what was resolved, what was decided>
+Request: <what the user asked for — one line>
+Files read: <comma-separated paths>
+Files written: <comma-separated paths of created/edited files>
+Commands: <significant shell commands and key results — one per line, omit if none>
+Decisions: <choices made and why — one per line, omit if none>
+Outcome: <what changed, what was resolved, what remains open — one to three lines max>
 
-Omit blocks that have no content. When multiple turns are grouped together, summarize them as one cohesive unit.
+When multiple turns are grouped, produce ONE summary covering all of them.
 
 ## Style
 
-Terse. All technical substance stays. Only fluff dies. Abbreviate where obvious (fn, config, impl, pkg, deps, etc). Arrows for causality. Fragments OK. One word when one word enough.
-
-Do NOT add information that wasn't in the original conversation.
-Do NOT narrate ("the user asked..." — just state what was asked).`;
+Terse. Fragments OK. Abbreviate (fn, config, impl, pkg, deps). No filler, no narration.`;
 
 // --- Prompt building ---
 
 function buildTurnGroupPrompt(group: TurnGroup): string {
-	return group.turns
+	const conversation = group.turns
 		.map((turn) => formatEntryLines(turn).join("\n"))
 		.join("\n\n");
+
+	return `Summarize the following conversation into the structured template described in your instructions.
+Output ONLY the filled-in template fields. Do NOT reproduce the conversation format.
+
+<conversation>
+${conversation}
+</conversation>`;
 }
 
 interface TurnCompaction {
@@ -132,9 +111,22 @@ export async function compactTurns(
 	);
 	if (!confirmed) return null;
 
+	const choice = await pickModel(ctx, {
+		preferred: TURN_COMPACTION_PREFERRED,
+		noFallback: true,
+	});
+
+	if (!choice) {
+		ctx.ui.notify(
+			"No authenticated sonnet-class model available for turn compaction",
+			"error",
+		);
+		return null;
+	}
+
 	let completed = 0;
 	ctx.ui.notify(
-		`⏳ Compacting ${groups.length} turn groups in parallel...`,
+		`⏳ Compacting ${groups.length} turn groups (up to 10 at a time)...`,
 		"info",
 	);
 	ctx.ui.setStatus(
@@ -142,16 +134,18 @@ export async function compactTurns(
 		`⏳ Compacting 0/${groups.length} turn groups`,
 	);
 
-	const settled = await Promise.allSettled(
-		groups.map((g) =>
-			compactTurnGroup(g, ctx).finally(() => {
-				completed++;
-				ctx.ui.setStatus(
-					"compaction",
-					`⏳ Compacting ${completed}/${groups.length} turn groups`,
-				);
-			}),
+	const settled = await settledPool(
+		groups.map(
+			(g) => () =>
+				compactTurnGroup(g, choice).finally(() => {
+					completed++;
+					ctx.ui.setStatus(
+						"compaction",
+						`⏳ Compacting ${completed}/${groups.length} turn groups`,
+					);
+				}),
 		),
+		10,
 	);
 
 	ctx.ui.setStatus("compaction", undefined);
@@ -196,14 +190,9 @@ export async function compactTurns(
 /** Compact a single turn group by calling a sonnet-class model. */
 async function compactTurnGroup(
 	group: TurnGroup,
-	ctx: ExtensionContext,
+	choice: Awaited<ReturnType<typeof pickModel>>,
 	signal?: AbortSignal,
 ): Promise<TurnCompaction> {
-	const choice = await pickModel(ctx, {
-		preferred: TURN_COMPACTION_PREFERRED,
-		noFallback: true,
-	});
-
 	if (!choice) {
 		throw new Error(
 			"No authenticated sonnet-class model available for turn compaction",
@@ -215,11 +204,15 @@ async function compactTurnGroup(
 		{ role: "user", content: userMessage, timestamp: Date.now() } as Message,
 	];
 
+	const maxTokens = Math.min(
+		6144,
+		Math.max(1024, Math.ceil(group.tokenEstimate * 0.3)),
+	);
 	const response = await complete(
 		choice,
 		TURN_COMPACTION_SYSTEM_PROMPT,
 		messages,
-		signal,
+		{ signal, maxTokens },
 	);
 
 	const compacted = response.content

@@ -22,7 +22,7 @@ import type { VoiceInputSettings } from "./settings";
  *
  * Uses XML structure similar to semantic-compaction for clarity
  */
-const CLEANUP_SYSTEM_PROMPT = `You are a transcription cleanup agent. Your job is to clean up spoken language transcripts while preserving the exact meaning and intent.
+const CLEANUP_SYSTEM_PROMPT = `You are a transcription cleanup agent. Your job is to fix transcription artifacts — nothing more.
 
 You will receive a message with two XML sections:
 - <context> - recent conversation history for understanding what the user is talking about
@@ -30,18 +30,34 @@ You will receive a message with two XML sections:
 
 Your output should ONLY contain the cleaned transcript. No preamble, no explanation, no XML tags.
 
-Rules:
-1. Remove filler words (um, uh, like, you know, etc.)
-2. Fix grammar and punctuation
-3. **Condense reiteration** - when the user says the same thing multiple ways, they're thinking out loud; extract the final intent
-4. Remove false starts, backtracking, and self-corrections
-5. **Err on the side of caution** - it's hard to tell "thinking out loud" from intentional verbosity
-6. PRESERVE the original meaning - do NOT rephrase or reinterpret
-7. Keep the user's voice and style - do NOT make it overly formal
-8. If unsure, prefer keeping the original wording
+The transcript may contain artifact tags from the speech-to-text engine, such as [SILENCE], [MUSIC], [LAUGHTER], [INAUDIBLE], etc. These are NOT part of the speech — they are metadata emitted by the transcriber to describe non-verbal audio. You may use them to understand context (e.g. a pause before a sentence) but do NOT include them in the output.
 
-Important: It's better to leave text slightly rough than to change what the user actually meant.
+CRITICAL: Your output must always be the transcript — either lightly corrected per the rules below, or verbatim if you are unsure. Never output explanations, questions, refusals, or commentary of any kind. If you don't know what to do, reproduce the transcript exactly as given. A verbatim transcript with artifacts in it is always better than anything else.
+
+You are ONLY allowed to make three types of changes:
+1. **Remove filler words** - um, uh, ah, hmm, and similar sounds with no semantic content.
+2. **Remove stutters and immediate word repetitions** - e.g. "I I want" → "I want", "the the thing" → "the thing". Only remove a repeat if it is clearly a speech artifact, not intentional emphasis.
+3. **Fix misrecognised words** - if the transcriber has picked the wrong word and you can tell from context what the correct word should be, replace it. Only do this when you are confident. Do NOT guess.
+
+Do NOT:
+- Rephrase, reword, or restructure sentences
+- Fix grammar or punctuation
+- Condense or summarise anything
+- Remove false starts or self-corrections — the user meant to say them
+- Add any words that were not in the original
+- Output anything other than the transcript itself
 `;
+
+/** Matches Whisper artifact tags like [SILENCE], [MUSIC], (inaudible), etc. */
+const ARTIFACT_TAG_RE = /\[[^\]]*\]|\([^)]*\)/gi;
+
+/**
+ * Returns true if the transcript contains no actual speech — only artifact
+ * tags and whitespace. There is nothing for the cleanup agent to work with.
+ */
+function isEmptyTranscript(raw: string): boolean {
+	return raw.replace(ARTIFACT_TAG_RE, "").trim().length === 0;
+}
 
 /**
  * Get recent conversation context for cleanup agent
@@ -114,6 +130,14 @@ export async function cleanupTranscript(
 		};
 	}
 
+	if (isEmptyTranscript(rawTranscript)) {
+		return {
+			text: "",
+			attempted: false,
+			error: "empty transcript",
+		};
+	}
+
 	const startedAt = Date.now();
 
 	try {
@@ -151,12 +175,9 @@ export async function cleanupTranscript(
 			{ role: "user", content: userMessage, timestamp: Date.now() } as Message,
 		];
 
-		const response = await complete(
-			choice,
-			CLEANUP_SYSTEM_PROMPT,
-			messages,
-			AbortSignal.timeout(8000),
-		);
+		const response = await complete(choice, CLEANUP_SYSTEM_PROMPT, messages, {
+			signal: AbortSignal.timeout(8000),
+		});
 
 		const result = response.content
 			.filter((c): c is { type: "text"; text: string } => c.type === "text")
