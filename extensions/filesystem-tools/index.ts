@@ -33,8 +33,8 @@
  * because grep is never in the active tool-set.
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { createReadOnlyTools } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { createReadOnlyTools } from "@earendil-works/pi-coding-agent";
 
 const TOOLS_TO_ACTIVATE = createReadOnlyTools(".").map((t) => t.name);
 

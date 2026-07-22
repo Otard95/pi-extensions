@@ -12,8 +12,8 @@ import {
 	type ExtensionAPI,
 	keyHint,
 	stripFrontmatter,
-} from "@mariozechner/pi-coding-agent";
-import { Text } from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
 import { Type } from "@sinclair/typebox";
 
 export default function (pi: ExtensionAPI) {

@@ -1,4 +1,4 @@
-import type { Message } from "@mariozechner/pi-ai";
+import type { Message } from "@earendil-works/pi-ai";
 import type { LiveTaskGroup } from "./schema";
 
 export const MAX_PARALLEL_TASKS = 8;

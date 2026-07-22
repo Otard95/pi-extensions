@@ -2,7 +2,7 @@ import type {
 	SessionEntry,
 	SessionManager,
 	SessionMessageEntry,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import { at } from "../../utils/array/at";
 import { stripToolCalls, type ToolCompaction } from "./analysis";
 

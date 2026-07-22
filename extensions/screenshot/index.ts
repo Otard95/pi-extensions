@@ -16,13 +16,13 @@
  */
 
 import { readFile, unlink } from "node:fs/promises";
-import { Type } from "@mariozechner/pi-ai";
+import { Type } from "@earendil-works/pi-ai";
 import {
 	type AgentToolResult,
 	type ExtensionAPI,
 	keyHint,
-} from "@mariozechner/pi-coding-agent";
-import { Text } from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
 import { type Static, Type as T } from "@sinclair/typebox";
 import { loadSettings } from "../../utils/settings.js";
 import { grimCapture } from "./capture/grim.js";

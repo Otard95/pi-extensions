@@ -1,9 +1,9 @@
-import type { Message } from "@mariozechner/pi-ai";
+import type { Message } from "@earendil-works/pi-ai";
 import type {
 	ExtensionCommandContext,
 	ExtensionContext,
 	SessionEntry,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import { at } from "../../utils/array/at";
 import { formatEntry } from "../../utils/conversation/entries";
 import { formatToolArgs } from "../../utils/conversation/messages";

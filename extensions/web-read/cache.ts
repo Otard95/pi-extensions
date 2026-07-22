@@ -3,7 +3,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { parseFrontmatter } from "@mariozechner/pi-coding-agent";
+import { parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import { Option } from "../../utils/monad/option";
 import { Result } from "../../utils/monad/result";
 import { Site } from "./site";

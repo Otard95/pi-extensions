@@ -8,11 +8,11 @@ import type {
 	ToolCall,
 	ToolResultMessage,
 	UserMessage,
-} from "@mariozechner/pi-ai";
+} from "@earendil-works/pi-ai";
 import type {
 	SessionEntry,
 	SessionMessageEntry,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 
 let idCounter = 0;
 

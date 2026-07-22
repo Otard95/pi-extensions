@@ -1,5 +1,5 @@
-import { type ExtensionAPI, keyHint } from "@mariozechner/pi-coding-agent";
-import { Text } from "@mariozechner/pi-tui";
+import { type ExtensionAPI, keyHint } from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { fetchPage, normalizeUrl } from "./fetch";
 import { renderPage } from "./render";

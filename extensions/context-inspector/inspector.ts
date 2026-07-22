@@ -3,9 +3,9 @@ import type {
 	SessionEntry,
 	SessionHeader,
 	Theme,
-} from "@mariozechner/pi-coding-agent";
-import type { Component, TUI } from "@mariozechner/pi-tui";
-import { matchesKey, truncateToWidth } from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-coding-agent";
+import type { Component, TUI } from "@earendil-works/pi-tui";
+import { matchesKey, truncateToWidth } from "@earendil-works/pi-tui";
 
 interface InspectorOptions {
 	systemPrompt: string;

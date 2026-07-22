@@ -6,7 +6,7 @@
 
 import { spawn } from "node:child_process";
 import { readFile, unlink } from "node:fs/promises";
-import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { findWhisperModel, getRecommendedModelPath } from "./model-finder.js";
 import type { VoiceInputSettings } from "./settings.js";
 

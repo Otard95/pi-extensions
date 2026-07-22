@@ -1,9 +1,9 @@
-import type { AssistantMessage } from "@mariozechner/pi-ai";
+import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type {
 	SessionEntry,
 	SessionMessageEntry,
-} from "@mariozechner/pi-coding-agent";
-import { estimateTokens } from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
+import { estimateTokens } from "@earendil-works/pi-coding-agent";
 import { at } from "../../utils/array/at";
 import { last } from "../../utils/array/last";
 

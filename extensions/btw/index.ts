@@ -16,19 +16,19 @@
  * - ↑/↓ or k/j to scroll, q/Esc to dismiss
  */
 
-import { type Message, stream } from "@mariozechner/pi-ai";
+import { type Message, stream } from "@earendil-works/pi-ai/compat";
 import {
 	BorderedLoader,
 	type ExtensionAPI,
 	type ExtensionContext,
 	getMarkdownTheme,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import {
 	Key,
 	Markdown,
 	matchesKey,
 	truncateToWidth,
-} from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-tui";
 import { getMessages, messageText } from "../../utils/conversation/messages";
 import { pickModel } from "../../utils/model/pick";
 

@@ -19,8 +19,8 @@ import { resolve } from "node:path";
 import type {
 	ExtensionAPI,
 	ToolCallEvent,
-} from "@mariozechner/pi-coding-agent";
-import { isToolCallEventType } from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
+import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
 
 // Paths that are too broad to ever search recursively
 const BLOCKED_PATHS = [

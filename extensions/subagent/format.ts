@@ -1,4 +1,4 @@
-import type { Message, ToolResultMessage } from "@mariozechner/pi-ai";
+import type { Message, ToolResultMessage } from "@earendil-works/pi-ai";
 import { at } from "../../utils/array/at";
 import { last } from "../../utils/array/last";
 import {

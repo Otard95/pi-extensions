@@ -16,9 +16,9 @@ import { join } from "node:path";
 import type {
 	ExtensionAPI,
 	ExtensionContext,
-} from "@mariozechner/pi-coding-agent";
-import { getAgentDir } from "@mariozechner/pi-coding-agent";
-import type { KeyId } from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-coding-agent";
+import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import type { KeyId } from "@earendil-works/pi-tui";
 import { createAudioRecorder } from "./audio-recorder.js";
 import { findWhisperModel, getRecommendedModelPath } from "./model-finder.js";
 import { type JobResult, TranscriptionQueue } from "./queue.js";

@@ -33,8 +33,8 @@
  *   then re-attached verbatim.
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { isReadToolResult } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { isReadToolResult } from "@earendil-works/pi-coding-agent";
 import { last } from "../../utils/array/last";
 
 const metadataRx = /^\[.*\]$/;

@@ -6,7 +6,7 @@
  * sessions are always pasted in the correct sequence.
  */
 
-import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { cleanupTranscript } from "./cleanup.js";
 import type { VoiceInputSettings } from "./settings.js";
 import { transcribe } from "./transcriber.js";

@@ -1,4 +1,4 @@
-import type { SessionEntry } from "@mariozechner/pi-coding-agent";
+import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { at } from "../../../utils/array/at";
 import { last } from "../../../utils/array/last";

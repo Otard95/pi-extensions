@@ -1,5 +1,5 @@
-import type { SessionEntry } from "@mariozechner/pi-coding-agent";
-import { estimateTokens } from "@mariozechner/pi-coding-agent";
+import type { SessionEntry } from "@earendil-works/pi-coding-agent";
+import { estimateTokens } from "@earendil-works/pi-coding-agent";
 import { at } from "../../utils/array/at";
 import { formatEntry } from "../../utils/conversation/entries";
 import { formatMessage, isMessage } from "../../utils/conversation/messages";

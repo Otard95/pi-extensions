@@ -14,11 +14,11 @@
  */
 
 import path from "node:path";
-import { complete, type Message } from "@mariozechner/pi-ai";
+import { complete, type Message } from "@earendil-works/pi-ai/compat";
 import type {
 	ExtensionAPI,
 	ExtensionContext,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 
 import {
 	filterContentTypes,

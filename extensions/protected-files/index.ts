@@ -27,7 +27,7 @@ import {
 	type ExtensionAPI,
 	isToolCallEventType,
 	type ToolCallEvent,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "@sinclair/typebox";
 import { minimatch } from "minimatch";
 import { loadSettings } from "../../utils/settings.js";

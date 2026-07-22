@@ -8,7 +8,7 @@
  *   /retry           - alias for /continue
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 export default function continueExtension(pi: ExtensionAPI) {
 	const resume = () => {

@@ -12,9 +12,9 @@
  *   2. "searxng.authorization" in settings.json (supports "pass:" prefix)
  */
 
-import { Type } from "@mariozechner/pi-ai";
-import { type ExtensionAPI, keyHint } from "@mariozechner/pi-coding-agent";
-import { Text } from "@mariozechner/pi-tui";
+import { Type } from "@earendil-works/pi-ai";
+import { type ExtensionAPI, keyHint } from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
 import { type Static, Type as T } from "@sinclair/typebox";
 import { at } from "../../utils/array/at";
 import { resolveValue } from "../../utils/secret";

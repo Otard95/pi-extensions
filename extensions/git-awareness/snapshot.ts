@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { fetchGitState, type GitState } from "./git.js";
 
 export class GitSnapshot {

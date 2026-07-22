@@ -4,8 +4,8 @@ import type {
 	TextContent,
 	ThinkingContent,
 	ToolCall,
-} from "@mariozechner/pi-ai";
-import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-ai";
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 export type ContentBlock =
 	| TextContent

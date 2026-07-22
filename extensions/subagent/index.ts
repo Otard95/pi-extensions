@@ -10,7 +10,7 @@
  */
 
 import { writeFileSync } from "node:fs";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { type AgentConfig, discoverAgents } from "./agents";
 import { executeGroup } from "./executor";
 import { collectFinalOutput } from "./format";

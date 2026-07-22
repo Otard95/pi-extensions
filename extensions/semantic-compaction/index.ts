@@ -1,4 +1,4 @@
-import type { ExtensionAPI, SessionEntry } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, SessionEntry } from "@earendil-works/pi-coding-agent";
 
 import { at } from "../../utils/array/at";
 import { Result } from "../../utils/monad/result";

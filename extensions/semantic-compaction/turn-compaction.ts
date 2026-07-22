@@ -1,8 +1,8 @@
-import type { Message } from "@mariozechner/pi-ai";
+import type { Message } from "@earendil-works/pi-ai";
 import type {
 	ExtensionCommandContext,
 	SessionEntry,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import { at } from "../../utils/array/at";
 import { settledPool } from "../../utils/async/pool";
 import { complete } from "../../utils/model/complete";

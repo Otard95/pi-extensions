@@ -1,4 +1,4 @@
-import type { AutocompleteItem } from "@mariozechner/pi-tui";
+import type { AutocompleteItem } from "@earendil-works/pi-tui";
 import { at } from "../../utils/array/at";
 import { Result } from "../../utils/monad/result";
 import { parseMode } from "./args";
