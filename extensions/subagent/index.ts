@@ -56,10 +56,10 @@ function buildDescription(agents: AgentConfig[]): string {
 		"",
 		"**Example:** Shared context (avoid repeating large strings across tasks)",
 		'{ "mode": "parallel",',
-		'  "context": { "spec": "...large shared spec or codebase content..." },',
+		'  "shared": { "spec": "...large shared spec or codebase content..." },',
 		'  "tasks": [',
-		'    { "agent": "worker", "taskDescription": "Implement feature A.\\n{context.spec}" },',
-		'    { "agent": "worker", "taskDescription": "Implement feature B.\\n{context.spec}" }',
+		'    { "agent": "worker", "taskDescription": "Implement feature A.\\n{shared.spec}" },',
+		'    { "agent": "worker", "taskDescription": "Implement feature B.\\n{shared.spec}" }',
 		'  ] }',
 		"",
 		"**Example:** Sequential with {previous} (output of prior step is injected)",
@@ -149,7 +149,7 @@ export default function (pi: ExtensionAPI) {
 				});
 			};
 
-			const context = params["context"] as
+			const shared = params["shared"] as
 				| Record<string, string>
 				| undefined;
 
@@ -161,7 +161,7 @@ export default function (pi: ExtensionAPI) {
 				notify,
 				toolSnippets,
 				undefined,
-				context,
+				shared,
 			);
 
 			const finalText = collectFinalOutput(root);
