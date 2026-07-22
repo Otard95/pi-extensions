@@ -54,6 +54,14 @@ function buildDescription(agents: AgentConfig[]): string {
 		'  { "agent": "scout", "name": "db-layer", "taskDescription": "Map the database models and queries in src/db/" }',
 		"] }",
 		"",
+		"**Example:** Shared context (avoid repeating large strings across tasks)",
+		'{ "mode": "parallel",',
+		'  "context": { "spec": "...large shared spec or codebase content..." },',
+		'  "tasks": [',
+		'    { "agent": "worker", "taskDescription": "Implement feature A.\\n{context.spec}" },',
+		'    { "agent": "worker", "taskDescription": "Implement feature B.\\n{context.spec}" }',
+		'  ] }',
+		"",
 		"**Example:** Sequential with {previous} (output of prior step is injected)",
 		'{ "mode": "sequential", "tasks": [',
 		'  { "agent": "scout", "taskDescription": "Find all usages of the deprecated parseConfig() function" },',
@@ -141,6 +149,10 @@ export default function (pi: ExtensionAPI) {
 				});
 			};
 
+			const context = params["context"] as
+				| Record<string, string>
+				| undefined;
+
 			const { isError, errorMessage } = await executeGroup(
 				root,
 				ctx.cwd,
@@ -148,6 +160,8 @@ export default function (pi: ExtensionAPI) {
 				signal,
 				notify,
 				toolSnippets,
+				undefined,
+				context,
 			);
 
 			const finalText = collectFinalOutput(root);

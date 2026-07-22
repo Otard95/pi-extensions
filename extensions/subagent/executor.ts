@@ -25,6 +25,7 @@ export async function executeGroup(
 	notify: () => void,
 	toolSnippets: Record<string, string>,
 	previous?: string,
+	context?: Record<string, string>,
 ): Promise<{ isError: boolean; errorMessage?: string }> {
 	const totalTasks = countTasks(group);
 	if (totalTasks > MAX_PARALLEL_TASKS) {
@@ -43,6 +44,7 @@ export async function executeGroup(
 			notify,
 			toolSnippets,
 			previous,
+			context,
 		);
 	}
 	return executeSequential(
@@ -53,6 +55,7 @@ export async function executeGroup(
 		notify,
 		toolSnippets,
 		previous,
+		context,
 	);
 }
 
@@ -66,10 +69,12 @@ async function executeParallel(
 	notify: () => void,
 	toolSnippets: Record<string, string>,
 	previous?: string,
+	context?: Record<string, string>,
 ): Promise<{ isError: boolean }> {
 	await mapWithConcurrencyLimit(group.tasks, MAX_CONCURRENCY, async (item) => {
 		if (isLiveTask(item)) {
 			applyPrevious(item, previous);
+			applyContext(item, context);
 			await runSingleAgent(
 				defaultCwd,
 				agents,
@@ -87,6 +92,7 @@ async function executeParallel(
 				notify,
 				toolSnippets,
 				previous,
+				context,
 			);
 		}
 	});
@@ -106,12 +112,14 @@ async function executeSequential(
 	notify: () => void,
 	toolSnippets: Record<string, string>,
 	previous?: string,
+	context?: Record<string, string>,
 ): Promise<{ isError: boolean; errorMessage?: string }> {
 	let prev = previous;
 
 	for (const item of group.tasks) {
 		if (isLiveTask(item)) {
 			applyPrevious(item, prev);
+			applyContext(item, context);
 			await runSingleAgent(
 				defaultCwd,
 				agents,
@@ -138,6 +146,7 @@ async function executeSequential(
 				notify,
 				toolSnippets,
 				prev,
+				context,
 			);
 			if (nested.isError) return nested;
 		}
@@ -149,6 +158,14 @@ async function executeSequential(
 }
 
 // -- Helpers -----------------------------------------------------------------
+
+function applyContext(task: LiveTask, context?: Record<string, string>) {
+	if (!context) return;
+	task.taskDescription = task.taskDescription.replace(
+		/\{context\.([^}]+)\}/g,
+		(match, key) => context[key] ?? match,
+	);
+}
 
 function applyPrevious(task: LiveTask, previous?: string) {
 	if (previous && task.taskDescription.includes("{previous}")) {

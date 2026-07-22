@@ -11,7 +11,10 @@ const Mode = Type.Union(
 
 const Task = Type.Object({
 	agent: Type.String({ description: "Name of the agent to invoke" }),
-	taskDescription: Type.String({ description: "What the agent should do" }),
+	taskDescription: Type.String({
+		description:
+			"What the agent should do. May reference shared context values as {context.key}.",
+	}),
 	name: Type.Optional(
 		Type.String({
 			description:
@@ -34,6 +37,12 @@ export const SubagentParams = Type.Object({
 		description:
 			"List of tasks or nested task groups. Each task specifies an agent and description. Nested groups allow mixing parallel and sequential execution.",
 	}),
+	context: Type.Optional(
+		Type.Record(Type.String(), Type.String(), {
+			description:
+				"Shared string values referenceable in any taskDescription as {context.key}. Use to avoid repeating large shared content across multiple task descriptions.",
+		}),
+	),
 });
 
 // -- Runtime types -----------------------------------------------------------
