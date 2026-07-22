@@ -88,6 +88,7 @@ function buildDescription(agents: AgentConfig[]): string {
 		"- Simple tool calls you can do directly (reading a file, running a command)",
 		"- Tasks that need your current conversation context",
 		"- When you need to interactively iterate with the user",
+		"- When you already have the answer or content: if you're handing the subagent exact file content to write, exact commands to run, or exact text to return, you're proxying tool calls through an agent — just do it yourself. A subagent earns its cost only when it needs to reason, explore, or decide.",
 	);
 
 	return lines.join("\n");
