@@ -1,12 +1,11 @@
-import type { AssistantMessage, Message } from "@mariozechner/pi-ai";
+import type { AssistantMessage, Message } from "@earendil-works/pi-ai";
 import {
-	AuthStorage,
 	createAgentSession,
 	DefaultResourceLoader,
 	getAgentDir,
-	ModelRegistry,
+	ModelRuntime,
 	SessionManager,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import { at } from "../../utils/array/at";
 import type { AgentConfig } from "./agents";
 import type { LiveTask } from "./schema";
@@ -14,20 +13,19 @@ import { EMPTY_USAGE, type SingleResult } from "./types";
 
 // -- Model resolution --------------------------------------------------------
 
-function resolveModelFromRegistry(
+function resolveModelFromRuntime(
 	modelStr: string,
-	modelRegistry: ModelRegistry,
+	modelRuntime: ModelRuntime,
 ) {
-	const available = modelRegistry.getAvailable();
-
 	if (modelStr.includes("/")) {
 		const slashIdx = modelStr.indexOf("/");
 		const provider = modelStr.slice(0, slashIdx);
 		const modelId = modelStr.slice(slashIdx + 1);
-		const exact = modelRegistry.find(provider, modelId);
+		const exact = modelRuntime.getModel(provider, modelId);
 		if (exact) return exact;
 	}
 
+	const available = modelRuntime.getModels();
 	const byId = available.find((m) => m.id === modelStr);
 	if (byId) return byId;
 
@@ -134,10 +132,9 @@ export async function runSingleAgent(
 
 	const effectiveCwd = defaultCwd;
 	const agentDir = getAgentDir() ?? "";
-	const authStorage = AuthStorage.create();
-	const modelRegistry = ModelRegistry.create(authStorage);
+	const modelRuntime = await ModelRuntime.create();
 	const model = agent.model
-		? resolveModelFromRegistry(agent.model, modelRegistry)
+		? resolveModelFromRuntime(agent.model, modelRuntime)
 		: undefined;
 
 	try {
@@ -170,8 +167,7 @@ export async function runSingleAgent(
 			model,
 			thinkingLevel: "off",
 			tools: agent.tools,
-			authStorage,
-			modelRegistry,
+			modelRuntime,
 			resourceLoader: loader,
 			sessionManager: SessionManager.inMemory(),
 		});
