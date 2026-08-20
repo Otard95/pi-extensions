@@ -1,9 +1,3 @@
-/**
- * Shared settings management utility
- *
- * Provides type-safe loading of extension settings from settings.json
- */
-
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
@@ -11,99 +5,92 @@ import type { TSchema } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import { Result } from "./monad/result.js";
 
+interface LoadJsonConfigOptions {
+	key?: string;
+	schema?: TSchema;
+}
+
 /**
- * Load typed settings from settings.json
+ * Load typed configuration from a JSON file in the pi config directory.
  *
- * Reads `~/.config/pi/settings.json` or `.pi/settings.json` and extracts
- * the specified key. Validates against a TypeBox schema if provided.
- *
- * @param key - Top-level key in settings.json (e.g., "voiceInput", "searxng")
- * @param schema - Optional TypeBox schema for validation
- * @returns Result<T, Error> - Ok(settings) on success, Err(error) on failure
+ * @param filename - File name relative to the pi config dir (e.g., "settings.json", "cloak.json")
+ * @param options.key - Optional top-level key to extract before validation
+ * @param options.schema - Optional TypeBox schema for validation
  *
  * @example
  * ```ts
- * import { Type, type Static } from "@sinclair/typebox";
+ * // Load an entire config file
+ * const config = loadJsonConfig<CloakConfig>("cloak.json", {
+ *   schema: CloakConfigSchema,
+ * }).unwrapOr(defaults);
  *
- * const VoiceInputSchema = Type.Object({
- *   modelPath: Type.Optional(Type.String()),
- *   modelSearchPaths: Type.Optional(Type.Array(Type.String())),
- * });
- *
- * type VoiceInputSettings = Static<typeof VoiceInputSchema>;
- *
- * // Use default empty object if not configured
- * const settings = loadSettings<VoiceInputSettings>("voiceInput", VoiceInputSchema)
- *   .unwrapOr({});
- *
- * // Or provide custom defaults
- * const settings = loadSettings<VoiceInputSettings>("voiceInput", VoiceInputSchema)
- *   .unwrapOr({ modelPath: "/default/path.bin" });
- *
- * // Or handle errors explicitly
- * const result = loadSettings<VoiceInputSettings>("voiceInput", VoiceInputSchema);
- * if (result.isErr()) {
- *   console.error("Settings error:", result.unwrapErr());
- * }
+ * // Load a key from settings.json
+ * const settings = loadJsonConfig<VoiceInputSettings>("settings.json", {
+ *   key: "voiceInput",
+ *   schema: VoiceInputSchema,
+ * }).unwrapOr({});
  * ```
- *
- * @remarks
- * Returns `Err` if:
- * - Settings file doesn't exist
- * - Key not found in settings.json
- * - Value is not an object
- * - Schema validation fails
- *
- * Callers should use `.unwrapOr(defaultValue)` to handle missing config gracefully.
  */
-export function loadSettings<T extends Record<string, unknown>>(
-	key: string,
-	schema?: TSchema,
+export function loadJsonConfig<T>(
+	filename: string,
+	options?: LoadJsonConfigOptions,
 ): Result<T, Error> {
 	return Result.try(() => {
-		const settingsPath = join(getAgentDir(), "settings.json");
+		const filePath = join(getAgentDir(), filename);
 
-		// File doesn't exist
-		if (!existsSync(settingsPath)) {
-			throw new Error(`Settings file not found: ${settingsPath}`);
+		if (!existsSync(filePath)) {
+			throw new Error(`Config file not found: ${filePath}`);
 		}
 
-		// Parse settings.json
-		const raw = readFileSync(settingsPath, "utf-8");
-		const parsed = JSON.parse(raw);
+		const raw = readFileSync(filePath, "utf-8");
+		let value: unknown = JSON.parse(raw);
 
-		// Validate root is an object
-		if (
-			typeof parsed !== "object" ||
-			parsed === null ||
-			Array.isArray(parsed)
-		) {
-			throw new Error("settings.json root must be an object");
+		if (options?.key) {
+			if (
+				typeof value !== "object" ||
+				value === null ||
+				Array.isArray(value)
+			) {
+				throw new Error(`${filename} root must be an object`);
+			}
+
+			const extracted = (value as Record<string, unknown>)[options.key];
+			if (extracted === undefined) {
+				throw new Error(
+					`Key "${options.key}" not found in ${filename}`,
+				);
+			}
+
+			value = extracted;
 		}
 
-		// Extract key
-		const value = parsed[key];
-
-		// Key doesn't exist
-		if (value === undefined) {
-			throw new Error(`Key "${key}" not found in settings.json`);
-		}
-
-		// Validate value is an object
-		if (typeof value !== "object" || value === null || Array.isArray(value)) {
-			throw new Error(`settings.json["${key}"] must be an object`);
-		}
-
-		// Optional schema validation
-		if (schema) {
-			if (!Value.Check(schema, value)) {
-				const errors = [...Value.Errors(schema, value)]
+		if (options?.schema) {
+			if (!Value.Check(options.schema, value)) {
+				const context = options.key
+					? `${filename}["${options.key}"]`
+					: filename;
+				const errors = [...Value.Errors(options.schema, value)]
 					.map((e) => `${e.path}: ${e.message}`)
 					.join(", ");
-				throw new Error(`settings.json["${key}"] validation failed: ${errors}`);
+				throw new Error(`${context} validation failed: ${errors}`);
 			}
 		}
 
 		return value as T;
 	});
+}
+
+/**
+ * Load typed settings from a key in settings.json.
+ *
+ * Convenience wrapper around {@link loadJsonConfig}.
+ *
+ * @param key - Top-level key in settings.json (e.g., "voiceInput", "searxng")
+ * @param schema - Optional TypeBox schema for validation
+ */
+export function loadSettings<T extends Record<string, unknown>>(
+	key: string,
+	schema?: TSchema,
+): Result<T, Error> {
+	return loadJsonConfig<T>("settings.json", { key, schema });
 }
