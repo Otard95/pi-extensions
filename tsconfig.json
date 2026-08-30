@@ -24,6 +24,6 @@
 		// Performance
 		"skipLibCheck": true
 	},
-	"include": ["extensions/**/*.ts", "utils/**/*.ts"],
-	"exclude": ["node_modules/", "**/*.d.ts"]
+	"include": ["extensions/**/*.ts", "utils/**/*.ts", "types/**/*.d.ts"],
+	"exclude": ["node_modules/"]
 }
