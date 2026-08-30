@@ -60,7 +60,7 @@ function buildDescription(agents: AgentConfig[]): string {
 		'  "tasks": [',
 		'    { "agent": "worker", "taskDescription": "Implement feature A.\\n{shared.spec}" },',
 		'    { "agent": "worker", "taskDescription": "Implement feature B.\\n{shared.spec}" }',
-		'  ] }',
+		"  ] }",
 		"",
 		"**Example:** Sequential with {previous} (output of prior step is injected)",
 		'{ "mode": "sequential", "tasks": [',
@@ -150,9 +150,7 @@ export default function (pi: ExtensionAPI) {
 				});
 			};
 
-			const shared = params["shared"] as
-				| Record<string, string>
-				| undefined;
+			const shared = params["shared"] as Record<string, string> | undefined;
 
 			const { isError, errorMessage } = await executeGroup(
 				root,

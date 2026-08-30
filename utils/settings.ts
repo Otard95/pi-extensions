@@ -46,19 +46,13 @@ export function loadJsonConfig<T>(
 		let value: unknown = JSON.parse(raw);
 
 		if (options?.key) {
-			if (
-				typeof value !== "object" ||
-				value === null ||
-				Array.isArray(value)
-			) {
+			if (typeof value !== "object" || value === null || Array.isArray(value)) {
 				throw new Error(`${filename} root must be an object`);
 			}
 
 			const extracted = (value as Record<string, unknown>)[options.key];
 			if (extracted === undefined) {
-				throw new Error(
-					`Key "${options.key}" not found in ${filename}`,
-				);
+				throw new Error(`Key "${options.key}" not found in ${filename}`);
 			}
 
 			value = extracted;

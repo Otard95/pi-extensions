@@ -1,4 +1,7 @@
-import { type Message, complete as piComplete } from "@earendil-works/pi-ai/compat";
+import {
+	type Message,
+	complete as piComplete,
+} from "@earendil-works/pi-ai/compat";
 import type { ModelChoice } from "./type.js";
 
 type CompleteOptions = {

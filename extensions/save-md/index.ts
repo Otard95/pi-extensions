@@ -9,13 +9,13 @@ function textContent(content: unknown): string {
 
 	return content
 		.filter(
-		(block): block is { type: "text"; text: string } =>
-			typeof block === "object" &&
-			block !== null &&
-			"type" in block &&
-			block.type === "text" &&
-			"text" in block &&
-			typeof block.text === "string",
+			(block): block is { type: "text"; text: string } =>
+				typeof block === "object" &&
+				block !== null &&
+				"type" in block &&
+				block.type === "text" &&
+				"text" in block &&
+				typeof block.text === "string",
 		)
 		.map((block) => block.text)
 		.join("\n\n");
@@ -23,7 +23,8 @@ function textContent(content: unknown): string {
 
 export default function saveMarkdownExtension(pi: ExtensionAPI) {
 	pi.registerCommand("save-md", {
-		description: "Save the latest assistant response as Markdown (usage: /save-md name)",
+		description:
+			"Save the latest assistant response as Markdown (usage: /save-md name)",
 		handler: async (args, ctx) => {
 			await ctx.waitForIdle();
 
@@ -60,10 +61,14 @@ export default function saveMarkdownExtension(pi: ExtensionAPI) {
 			const path = resolve(ctx.cwd, fileName);
 
 			try {
-				await writeFile(path, markdown.endsWith("\n") ? markdown : `${markdown}\n`, {
-					encoding: "utf8",
-					flag: "wx",
-				});
+				await writeFile(
+					path,
+					markdown.endsWith("\n") ? markdown : `${markdown}\n`,
+					{
+						encoding: "utf8",
+						flag: "wx",
+					},
+				);
 			} catch (error) {
 				if (
 					typeof error === "object" &&

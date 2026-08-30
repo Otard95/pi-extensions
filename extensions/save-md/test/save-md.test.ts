@@ -1,10 +1,11 @@
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
-
-import { InMemoryCredentialStore, type AssistantMessage } from "@earendil-works/pi-ai";
+import {
+	type AssistantMessage,
+	InMemoryCredentialStore,
+} from "@earendil-works/pi-ai";
 import {
 	discoverAndLoadExtensions,
 	ExtensionRunner,
@@ -12,8 +13,13 @@ import {
 	ModelRuntime,
 	SessionManager,
 } from "@earendil-works/pi-coding-agent";
+import { describe, expect, it } from "vitest";
 
-const extensionPath = join(dirname(fileURLToPath(import.meta.url)), "..", "index.ts");
+const extensionPath = join(
+	dirname(fileURLToPath(import.meta.url)),
+	"..",
+	"index.ts",
+);
 
 function assistantMessage(markdown: string): AssistantMessage {
 	return {
@@ -37,7 +43,11 @@ function assistantMessage(markdown: string): AssistantMessage {
 
 async function createHarness(cwd: string) {
 	const sessionManager = SessionManager.inMemory(cwd);
-	const loaded = await discoverAndLoadExtensions([extensionPath], cwd, join(cwd, ".agent"));
+	const loaded = await discoverAndLoadExtensions(
+		[extensionPath],
+		cwd,
+		join(cwd, ".agent"),
+	);
 	expect(loaded.errors).toEqual([]);
 
 	const sentMessages: Array<{
@@ -61,7 +71,10 @@ async function createHarness(cwd: string) {
 		new ModelRegistry(modelRuntime),
 	);
 
-	const notifications: Array<{ message: string; type?: "info" | "warning" | "error" }> = [];
+	const notifications: Array<{
+		message: string;
+		type?: "info" | "warning" | "error";
+	}> = [];
 	runner.setUIContext({
 		...runner.getUIContext(),
 		notify: (message, type) => notifications.push({ message, type }),
@@ -86,10 +99,16 @@ describe("save-md", () => {
 
 			const path = join(cwd, "design.md");
 			expect(await readFile(path, "utf8")).toBe(`${markdown}\n`);
-			expect(notifications).toEqual([{ message: `Saved Markdown to ${path}`, type: "info" }]);
+			expect(notifications).toEqual([
+				{ message: `Saved Markdown to ${path}`, type: "info" },
+			]);
 			expect(sentMessages).toEqual([
 				{
-					message: { customType: "save-md", content: `Saved Markdown to ${path}`, display: true },
+					message: {
+						customType: "save-md",
+						content: `Saved Markdown to ${path}`,
+						display: true,
+					},
 					options: { deliverAs: "nextTurn" },
 				},
 			]);
@@ -118,7 +137,8 @@ describe("save-md", () => {
 	it("warns when missing a name", async () => {
 		const cwd = await mkdtemp(join(tmpdir(), "pi-save-md-"));
 		try {
-			const { notifications, runner, sessionManager } = await createHarness(cwd);
+			const { notifications, runner, sessionManager } =
+				await createHarness(cwd);
 			sessionManager.appendMessage(assistantMessage("# Unsaved"));
 
 			const command = runner.getCommand("save-md");
@@ -126,7 +146,9 @@ describe("save-md", () => {
 			await command!.handler("   ", runner.createCommandContext());
 
 			expect(await readdir(cwd)).toEqual([]);
-			expect(notifications).toEqual([{ message: "Usage: /save-md name", type: "warning" }]);
+			expect(notifications).toEqual([
+				{ message: "Usage: /save-md name", type: "warning" },
+			]);
 		} finally {
 			await rm(cwd, { recursive: true, force: true });
 		}
@@ -137,7 +159,8 @@ describe("save-md", () => {
 		try {
 			const path = join(cwd, "design.md");
 			await writeFile(path, "existing content\n", "utf8");
-			const { notifications, runner, sessionManager } = await createHarness(cwd);
+			const { notifications, runner, sessionManager } =
+				await createHarness(cwd);
 			sessionManager.appendMessage(assistantMessage("# Replacement"));
 
 			const command = runner.getCommand("save-md");
@@ -167,7 +190,9 @@ describe("save-md", () => {
 			expect(command).toBeTruthy();
 			await command!.handler("branch", runner.createCommandContext());
 
-			expect(await readFile(join(cwd, "branch.md"), "utf8")).toBe("# Active branch\n");
+			expect(await readFile(join(cwd, "branch.md"), "utf8")).toBe(
+				"# Active branch\n",
+			);
 		} finally {
 			await rm(cwd, { recursive: true, force: true });
 		}
@@ -176,7 +201,8 @@ describe("save-md", () => {
 	it("warns when the latest response has no Markdown text", async () => {
 		const cwd = await mkdtemp(join(tmpdir(), "pi-save-md-"));
 		try {
-			const { notifications, runner, sessionManager } = await createHarness(cwd);
+			const { notifications, runner, sessionManager } =
+				await createHarness(cwd);
 			sessionManager.appendMessage(assistantMessage("   "));
 
 			const command = runner.getCommand("save-md");
@@ -185,7 +211,10 @@ describe("save-md", () => {
 
 			expect(await readdir(cwd)).toEqual([]);
 			expect(notifications).toEqual([
-				{ message: "The latest assistant response has no Markdown text", type: "warning" },
+				{
+					message: "The latest assistant response has no Markdown text",
+					type: "warning",
+				},
 			]);
 		} finally {
 			await rm(cwd, { recursive: true, force: true });

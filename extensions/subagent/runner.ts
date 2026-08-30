@@ -13,10 +13,7 @@ import { EMPTY_USAGE, type SingleResult } from "./types";
 
 // -- Model resolution --------------------------------------------------------
 
-function resolveModelFromRuntime(
-	modelStr: string,
-	modelRuntime: ModelRuntime,
-) {
+function resolveModelFromRuntime(modelStr: string, modelRuntime: ModelRuntime) {
 	if (modelStr.includes("/")) {
 		const slashIdx = modelStr.indexOf("/");
 		const provider = modelStr.slice(0, slashIdx);

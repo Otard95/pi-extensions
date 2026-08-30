@@ -28,7 +28,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import * as path from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { createCodingTools, getAgentDir } from "@earendil-works/pi-coding-agent";
+import {
+	createCodingTools,
+	getAgentDir,
+} from "@earendil-works/pi-coding-agent";
 import type { KeyId } from "@earendil-works/pi-tui";
 import { ModeManager } from "./manager";
 import { loadModes, type ModeConfig } from "./modes";
