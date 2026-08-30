@@ -1,6 +1,11 @@
 node_modules/
-.envrc
-.direnv/
-.envrc.cache
 result
 result-*
+
+# Devenv
+.devenv*
+devenv.local.nix
+devenv.local.yaml
+
+# pre-commit
+.pre-commit-config.yaml

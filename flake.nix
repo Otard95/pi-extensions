@@ -16,14 +16,6 @@
         pkgs = nixpkgs.legacyPackages.${system};
       in
       {
-        devShells.default = pkgs.mkShell {
-          buildInputs = with pkgs; [
-            nodejs_22
-            whisper-cpp
-            ffmpeg
-          ];
-        };
-
         packages = {
           default = pkgs.buildNpmPackage {
             pname = "pi-extensions";
