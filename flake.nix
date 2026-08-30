@@ -17,16 +17,24 @@
       in
       {
         packages = {
-          default = pkgs.buildNpmPackage {
+          default = pkgs.stdenv.mkDerivation (finalAttrs: {
             pname = "pi-extensions";
             version = "0.17.0";
 
             src = self;
 
-            npmDepsHash = "sha256-Vz2SYn5d2ZxeBEW4jwBCAMZvTRvLmKVjcXOkibqXBrg=";
+            pnpmDeps = pkgs.fetchPnpmDeps {
+              inherit (finalAttrs) pname version src;
+              pnpm = pkgs.pnpm;
+              fetcherVersion = 3;
+              hash = "sha256-UD15GH/XXCu+x6c5jfX8ZvyR3a4e5Y1SWJUyPrbESNI=";
+            };
 
-            npmPackFlags = [ "--ignore-scripts" ];
-            npmInstallFlags = [ "--ignore-scripts" "--omit=dev" "--omit=peer" "--omit=optional" ];
+            nativeBuildInputs = [
+              pkgs.nodejs
+              pkgs.pnpm
+              pkgs.pnpmConfigHook
+            ];
 
             buildPhase = ''
               runHook preBuild
@@ -45,7 +53,7 @@
             meta = {
               description = "A pi-coding-agent package";
             };
-          };
+          });
         };
       }
     );
