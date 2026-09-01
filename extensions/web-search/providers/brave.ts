@@ -13,10 +13,10 @@ import {
 	type SearchResult,
 } from "../types.js";
 
-const DuckDuckGoSettingsSchema = Type.Object({
+const BraveSettingsSchema = Type.Object({
 	render: Type.Optional(Type.Literal("simple")),
 });
-const SEARCH_URL = "https://html.duckduckgo.com/html/";
+const SEARCH_URL = "https://search.brave.com/search";
 const NETWORK_COOLDOWN_MS = 15_000;
 const RATE_LIMIT_COOLDOWN_MS = 60_000;
 const BLOCKED_COOLDOWN_MS = 5 * 60_000;
@@ -39,16 +39,16 @@ const BROWSER_HEADERS = {
 		"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
 };
 
-type DuckDuckGoAvailability =
+type BraveAvailability =
 	| { status: "available" }
 	| { status: "unavailable"; reason: string; retryAt: number };
 
-export class DuckDuckGoProvider implements SearchProvider {
-	static readonly settingsSchema = DuckDuckGoSettingsSchema;
+export class BraveProvider implements SearchProvider {
+	static readonly settingsSchema = BraveSettingsSchema;
 
-	readonly label = "DuckDuckGo";
+	readonly label = "Brave Search";
 
-	private availability: DuckDuckGoAvailability = { status: "available" };
+	private availability: BraveAvailability = { status: "available" };
 
 	async checkAvailability(): Promise<Result<void, ProviderUnavailableError>> {
 		if (
@@ -56,7 +56,7 @@ export class DuckDuckGoProvider implements SearchProvider {
 			Date.now() < this.availability.retryAt
 		) {
 			return Result.Err(
-				new ProviderUnavailableError("duckduckgo", this.availability.reason),
+				new ProviderUnavailableError("brave", this.availability.reason),
 			);
 		}
 		return Result.Ok(undefined);
@@ -73,9 +73,10 @@ export class DuckDuckGoProvider implements SearchProvider {
 		try {
 			const url = new URL(SEARCH_URL);
 			url.searchParams.set("q", request.query);
+			url.searchParams.set("source", "web");
 			const response = await fetch(url, { headers: BROWSER_HEADERS, signal });
 			const body = await response.text();
-			await writeWebSearchDebugLog("duckduckgo-response", {
+			await writeWebSearchDebugLog("brave-response", {
 				request: { url: url.toString(), headers: BROWSER_HEADERS },
 				response: {
 					url: response.url,
@@ -87,14 +88,11 @@ export class DuckDuckGoProvider implements SearchProvider {
 					body,
 				},
 			});
-			if (!response.ok) {
-				return Result.Err(this.httpError(response, body));
-			}
-
+			if (!response.ok) return Result.Err(this.httpError(response, body));
 			if (this.hasBlockIndicator(body.slice(0, BODY_INSPECTION_LIMIT))) {
 				return Result.Err(
 					this.unavailableError(
-						"DuckDuckGo returned a CAPTCHA or challenge response",
+						"Brave Search returned a CAPTCHA or challenge response",
 						"blocked",
 						BLOCKED_COOLDOWN_MS,
 					),
@@ -105,7 +103,7 @@ export class DuckDuckGoProvider implements SearchProvider {
 			if (!results) {
 				return Result.Err(
 					this.unavailableError(
-						"DuckDuckGo returned an invalid response",
+						"Brave Search returned an invalid response",
 						"invalid_response",
 						NETWORK_COOLDOWN_MS,
 					),
@@ -120,18 +118,18 @@ export class DuckDuckGoProvider implements SearchProvider {
 				},
 			});
 		} catch (error) {
-			await writeWebSearchDebugLog("duckduckgo-request-error", {
+			await writeWebSearchDebugLog("brave-request-error", {
 				message: error instanceof Error ? error.message : String(error),
 			});
 			if (signal.aborted) {
 				return Result.Err(
-					new SearchProviderError("DuckDuckGo request timed out", "timeout"),
+					new SearchProviderError("Brave Search request timed out", "timeout"),
 				);
 			}
 			const message = error instanceof Error ? error.message : String(error);
 			return Result.Err(
 				this.unavailableError(
-					`DuckDuckGo request failed: ${message}`,
+					`Brave Search request failed: ${message}`,
 					"network",
 					NETWORK_COOLDOWN_MS,
 				),
@@ -144,62 +142,55 @@ export class DuckDuckGoProvider implements SearchProvider {
 	private httpError(response: Response, body: string): SearchProviderError {
 		if (response.status === 429) {
 			return this.unavailableError(
-				"DuckDuckGo rate limited this request",
+				"Brave Search rate limited this request",
 				"rate_limited",
 				this.retryAfterMs(response.headers.get("retry-after")),
 			);
 		}
 		if (response.status === 403 && this.hasBlockIndicator(body)) {
 			return this.unavailableError(
-				"DuckDuckGo blocked this request",
+				"Brave Search blocked this request",
 				"blocked",
 				BLOCKED_COOLDOWN_MS,
 			);
 		}
 		return this.unavailableError(
-			`DuckDuckGo returned HTTP ${response.status}`,
+			`Brave Search returned HTTP ${response.status}`,
 			response.status >= 500 ? "server" : "blocked",
 			response.status >= 500 ? NETWORK_COOLDOWN_MS : BLOCKED_COOLDOWN_MS,
 		);
 	}
 
-	private parseResults(body: string): SearchResult[] {
+	private parseResults(body: string): SearchResult[] | undefined {
 		const document = domino.createDocument(body);
-		return Array.from(document.querySelectorAll(".result"))
-			.filter(
-				(result) =>
-					!result.getAttribute("class")?.split(/\s+/).includes("result--ad"),
-			)
-			.map((r) => {
-				const href = r.querySelector("a.result__url")?.getAttribute("href");
-				const title = r.querySelector("a.result__a")?.textContent;
-				const snippet = r.querySelector("a.result__snippet")?.textContent;
-				const url = href ? this.resultUrl(href) : undefined;
-				if (!url || !title) return null;
+		const cards = Array.from(document.querySelectorAll(".result-wrapper"));
+		if (cards.length === 0 && !document.querySelector("#results")) {
+			return undefined;
+		}
+		return cards
+			.map((card): SearchResult | null => {
+				const link = card.querySelector("a[href]");
+				const href = link?.getAttribute("href");
+				const title = card.querySelector(".title")?.textContent;
+				if (!href || !title) return null;
+				const url = this.resultUrl(href);
+				if (!url) return null;
+				const snippet = this.text(
+					card.querySelector(".generic-snippet")?.textContent ?? null,
+				);
 				return {
+					title: this.text(title),
 					url,
-					title,
-					source: "duckduckgo",
-					snippet: snippet ? this.text(snippet) : undefined,
-				} satisfies SearchResult;
+					source: "brave",
+					...(snippet ? { snippet } : {}),
+				};
 			})
-			.filter(Boolean) as SearchResult[];
+			.filter((result): result is SearchResult => result !== null);
 	}
 
 	private resultUrl(href: string): string | undefined {
 		try {
-			const url = new URL(href, SEARCH_URL);
-			if (url.hostname !== "duckduckgo.com" || url.pathname !== "/l/") {
-				return url.toString();
-			}
-			const target = url.searchParams.get("uddg");
-			if (!target) return undefined;
-			const destination = new URL(target).toString();
-			void writeWebSearchDebugLog("duckduckgo-redirect", {
-				href,
-				destination,
-			});
-			return destination;
+			return new URL(href, SEARCH_URL).toString();
 		} catch {
 			return undefined;
 		}

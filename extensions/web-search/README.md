@@ -23,13 +23,16 @@ text. They must not invoke fallback themselves.
 ```json
 {
   "web-search": {
-    "providers": ["searxng", "duckduckgo"],
+    "providers": ["searxng", "duckduckgo", "brave"],
     "timeoutSeconds": 30,
     "searxng": {
       "url": "https://search.example.com",
       "authorization": "pass:searxng/auth"
     },
     "duckduckgo": {
+      "render": "simple"
+    },
+    "brave": {
       "render": "simple"
     }
   }

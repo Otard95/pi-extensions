@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { configureProviders } from "../provider-registry.js";
-import { DuckDuckGoProvider } from "./duckduckgo.js";
+import { BraveProvider } from "./brave.js";
 
 const originalFetch = globalThis.fetch;
 
@@ -12,7 +12,7 @@ function response(body: string, init?: ResponseInit): Response {
 	});
 }
 
-function search(instance: DuckDuckGoProvider) {
+function search(instance: BraveProvider) {
 	return instance.search(
 		{ query: "test query", maxResults: 5 },
 		{ timeoutMs: 1_000 },
@@ -24,40 +24,37 @@ afterEach(() => {
 	vi.useRealTimers();
 });
 
-describe("DuckDuckGoProvider", () => {
+describe("BraveProvider", () => {
 	it("is registered without provider-specific settings", () => {
 		const resolution = configureProviders(
-			["duckduckgo"],
-			{ duckduckgo: { render: "simple" } },
-			{ duckduckgo: DuckDuckGoProvider },
+			["brave"],
+			{ brave: { render: "simple" } },
+			{ brave: BraveProvider },
 		);
 
 		expect(resolution.issues).toEqual([]);
 		expect(resolution.providers).toHaveLength(1);
 	});
 
-	it("sends a browser-like request and normalizes organic results", async () => {
+	it("sends a browser-like request and normalizes result cards", async () => {
 		const fetch = vi.fn().mockResolvedValue(
 			response(`
-				<div class="result results_links result--ad">
-					<a class="result__a">Docker Online Guide</a>
-					<a class="result__url" href="https://duckduckgo.com/y.js?ad_domain=example.com">duckduckgo.com</a>
-				</div>
-				<div class="result results_links results_links_deep web-result">
-					<div class="links_main links_deep result__body">
-						<h2 class="result__title"><a class="result__a" href="https://example.com/guide">Example &amp; guide</a></h2>
-						<div class="result__extras"><div class="result__extras__url"><a class="result__url" href="https://example.com/guide">example.com/guide</a></div></div>
-						<a class="result__snippet" href="https://example.com/guide">A useful <b>snippet</b>.</a>
+				<div id="results">
+					<div class="result-wrapper">
+						<a href="https://example.com/guide"><div class="title">Example &amp; guide</div></a>
+						<div class="generic-snippet">A useful <b>snippet</b>.</div>
 					</div>
 				</div>
 			`),
 		);
 		globalThis.fetch = fetch;
 
-		const result = await search(new DuckDuckGoProvider());
+		const result = await search(new BraveProvider());
 
 		const [url, init] = fetch.mock.calls[0] ?? [];
-		expect(String(url)).toBe("https://html.duckduckgo.com/html/?q=test+query");
+		expect(String(url)).toBe(
+			"https://search.brave.com/search?q=test+query&source=web",
+		);
 		expect(init).toMatchObject({
 			headers: {
 				Accept: expect.stringContaining("text/html"),
@@ -72,41 +69,17 @@ describe("DuckDuckGoProvider", () => {
 					title: "Example & guide",
 					url: "https://example.com/guide",
 					snippet: "A useful snippet.",
-					source: "duckduckgo",
+					source: "brave",
 				},
 			],
 		});
 	});
 
-	it("unwraps DuckDuckGo result redirects", async () => {
-		globalThis.fetch = vi.fn().mockResolvedValue(
-			response(`
-				<div class="result">
-					<a class="result__a">Docker contexts</a>
-					<a class="result__url" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fdocs.docker.com%2Fengine%2Fmanage%2Dresources%2Fcontexts%2F&amp;rut=example">docs.docker.com</a>
-				</div>
-			`),
-		);
-
-		const result = await search(new DuckDuckGoProvider());
-
-		expect(result.unwrap().payload).toEqual({
-			kind: "results",
-			results: [
-				{
-					title: "Docker contexts",
-					url: "https://docs.docker.com/engine/manage-resources/contexts/",
-					source: "duckduckgo",
-				},
-			],
-		});
-	});
-
-	it("enters a cooldown when DuckDuckGo returns a challenge", async () => {
+	it("enters a cooldown when Brave Search returns a challenge", async () => {
 		globalThis.fetch = vi
 			.fn()
 			.mockResolvedValue(response("<title>CAPTCHA challenge</title>"));
-		const instance = new DuckDuckGoProvider();
+		const instance = new BraveProvider();
 
 		expect((await search(instance)).unwrapErr().kind).toBe("blocked");
 		expect((await instance.checkAvailability()).isErr()).toBe(true);
@@ -120,7 +93,7 @@ describe("DuckDuckGoProvider", () => {
 				headers: { "retry-after": "10" },
 			}),
 		);
-		const instance = new DuckDuckGoProvider();
+		const instance = new BraveProvider();
 
 		expect((await search(instance)).unwrapErr().kind).toBe("rate_limited");
 		expect((await instance.checkAvailability()).isErr()).toBe(true);

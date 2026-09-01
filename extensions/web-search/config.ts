@@ -9,7 +9,7 @@ export const WebSearchSettingsSchema = Type.Object({
 export type WebSearchSettings = Static<typeof WebSearchSettingsSchema> &
 	Record<string, unknown>;
 
-export const DEFAULT_PROVIDER_ORDER = ["searxng", "duckduckgo"];
+export const DEFAULT_PROVIDER_ORDER = ["searxng", "duckduckgo", "brave"];
 
 export function loadWebSearchSettings() {
 	return loadSettings<WebSearchSettings>("web-search", WebSearchSettingsSchema);
