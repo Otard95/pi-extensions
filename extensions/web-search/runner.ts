@@ -1,4 +1,5 @@
 import { Result } from "../../utils/monad/result.js";
+import type { ProviderRateLimiter } from "./rate-limit.js";
 import type {
 	ConfiguredSearchProvider,
 	SearchAttempt,
@@ -15,10 +16,14 @@ export interface SearchRunResult {
 	attempts: SearchAttempt[];
 }
 
+export interface SearchRunContext extends SearchContext {
+	rateLimiter?: ProviderRateLimiter;
+}
+
 export async function runSearch(
 	providers: ConfiguredSearchProvider[],
 	request: SearchRequest,
-	context: SearchContext,
+	context: SearchRunContext,
 ): Promise<Result<SearchRunResult, SearchRunError>> {
 	const attempts: SearchAttempt[] = [];
 	const deadline = Date.now() + context.timeoutMs;
@@ -31,6 +36,16 @@ export async function runSearch(
 				provider: name,
 				status: "skipped",
 				reason: availability.unwrapErr().message,
+			});
+			continue;
+		}
+
+		const rateLimit = context.rateLimiter?.acquire(name);
+		if (rateLimit && !rateLimit.allowed) {
+			attempts.push({
+				provider: name,
+				status: "skipped",
+				reason: rateLimit.reason,
 			});
 			continue;
 		}

@@ -25,6 +25,15 @@ text. They must not invoke fallback themselves.
   "web-search": {
     "providers": ["searxng", "duckduckgo", "brave"],
     "timeoutSeconds": 30,
+    "rate-limit": {
+      "brave": [
+        {
+          "count": 10,
+          "window": { "m": 1 },
+          "message": "Brave Search is limited to 10 requests each minute."
+        }
+      ]
+    },
     "searxng": {
       "url": "https://search.example.com",
       "authorization": "pass:searxng/auth"
@@ -38,3 +47,14 @@ text. They must not invoke fallback themselves.
   }
 }
 ```
+
+## Rate limits
+
+Use `rate-limit.<provider>` to set one or more local limits for a provider.
+Each request counts, even when the provider returns an error. The extension skips a
+limited provider and tries the next provider. The optional `message` becomes the
+skip reason.
+
+Each rule requires a positive `count` and a `window` with `s`, `m`, or both.
+The extension keeps the counters in memory. It clears them when pi reloads the
+extension or starts a new session.

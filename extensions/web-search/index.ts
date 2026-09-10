@@ -5,6 +5,7 @@ import { loadWebSearchSettings, providerOrder } from "./config.js";
 import { writeWebSearchDebugLog } from "./debug.js";
 import { configureProviders } from "./provider-registry.js";
 import { supportedProviders } from "./providers/index.js";
+import { ProviderRateLimiter } from "./rate-limit.js";
 import { runSearch } from "./runner.js";
 import type {
 	ProviderSetupError,
@@ -40,6 +41,9 @@ export default function webSearchExtension(pi: ExtensionAPI) {
 	const setupIssues = settingsResult.isOk()
 		? (resolution?.issues ?? [])
 		: [settingsResult.unwrapErr()];
+	const rateLimiter = settingsResult.isOk()
+		? new ProviderRateLimiter(settingsResult.unwrap()["rate-limit"] ?? {})
+		: undefined;
 
 	pi.on("session_start", (_event, ctx) => {
 		if (setupIssues.length === 0) return;
@@ -93,6 +97,7 @@ export default function webSearchExtension(pi: ExtensionAPI) {
 					timeoutMs: settings.timeoutSeconds
 						? settings.timeoutSeconds * 1_000
 						: DEFAULT_TIMEOUT_MS,
+					rateLimiter,
 				},
 			);
 
