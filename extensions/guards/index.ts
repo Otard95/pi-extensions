@@ -137,9 +137,29 @@ const TOOL_DUPLICATE_PATTERNS: {
 
 type BlockResult = { block: true; reason: string } | undefined;
 
+// Extract the starting path from a bash find invocation.
+// Handles find's own flags (-H, -L, -P, -D <opts>, -O<level>) before the path.
+function extractBashFindPath(command: string): string | undefined {
+	const match = command.match(/\bfind\b(.*)/);
+	if (!match) return undefined;
+
+	const tokens = (match[1] ?? "").trim().split(/\s+/);
+	for (let i = 0; i < tokens.length; i++) {
+		const t = tokens[i] ?? "";
+		if (t === "-H" || t === "-L" || t === "-P") continue;
+		if (t === "-D") { i++; continue; }
+		if (/^-O/.test(t)) continue;
+		// Expression predicates — no explicit path was given
+		if (t.startsWith("-") || t === "!" || t === "(") break;
+		return t || undefined;
+	}
+	return undefined;
+}
+
 function checkBashGuards(
 	event: ToolCallEvent,
 	activeTools: string[],
+	cwd: string,
 ): BlockResult {
 	if (!isToolCallEventType("bash", event)) return;
 
@@ -170,6 +190,25 @@ function checkBashGuards(
 				block: true,
 				reason: `Blocked: ${description}`,
 			};
+		}
+	}
+
+	// 3. Bash find path guard: apply BLOCKED_PATHS when find runs through bash
+	if (/\bfind\b/.test(command)) {
+		const raw = extractBashFindPath(command);
+		if (raw) {
+			let p = raw;
+			if (p === "~" || p.startsWith("~/")) p = homedir() + p.slice(1);
+			else if (p === "$HOME" || p.startsWith("$HOME/")) p = homedir() + p.slice(5);
+			const resolved = resolve(cwd, p).replace(/\/+$/, "") || "/";
+			if (BLOCKED_PATHS.includes(resolved)) {
+				return {
+					block: true,
+					reason:
+						`Blocked: bash find path "${raw}" resolves to "${resolved}" which is too broad. ` +
+						`Use a more specific directory.`,
+				};
+			}
 		}
 	}
 }
@@ -209,7 +248,7 @@ function checkGlobGuard(event: ToolCallEvent, cwd: string): BlockResult {
 export default function guardsExtension(pi: ExtensionAPI) {
 	pi.on("tool_call", (event, ctx) => {
 		return (
-			checkBashGuards(event, pi.getActiveTools()) ??
+			checkBashGuards(event, pi.getActiveTools(), ctx.cwd) ??
 			checkGlobGuard(event, ctx.cwd)
 		);
 	});
