@@ -11,6 +11,9 @@ importers:
       '@mixmark-io/domino':
         specifier: 2.2.0
         version: 2.2.0
+      '@typesafe-ai/sdk':
+        specifier: ^0.6.0
+        version: 0.6.0
       minimatch:
         specifier: ^10.2.5
         version: 10.2.6
@@ -530,6 +533,10 @@ packages:
 
   '@types/turndown@5.0.5':
     resolution: {integrity: sha512-TL2IgGgc7B5j78rIccBtlYAnkuv8nUQqhQc+DSYV5j9Be9XOcm/SKOVRuA47xAVI3680Tk9B1d8flK2GWT2+4w==}
+
+  '@typesafe-ai/sdk@0.6.0':
+    resolution: {integrity: sha512-IddX+Q0XM+VagOUZFeP7wZjaO4SHMdvnh2zEBdrZZnXedWI3BNK1lKhMx3ayrkFWvVLbVcUHJy6AVZlY+e6Jaw==}
+    engines: {node: '>=20'}
 
   '@vitest/expect@4.1.4':
     resolution: {integrity: sha512-iPBpra+VDuXmBFI3FMKHSFXp3Gx5HfmSCE8X67Dn+bwephCnQCaB7qWK2ldHa+8ncN8hJU8VTMcxjPpyMkUjww==}
@@ -1658,6 +1665,8 @@ snapshots:
   '@types/retry@0.12.0': {}
 
   '@types/turndown@5.0.5': {}
+
+  '@typesafe-ai/sdk@0.6.0': {}
 
   '@vitest/expect@4.1.4':
     dependencies:
