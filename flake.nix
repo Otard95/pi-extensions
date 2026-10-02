@@ -19,7 +19,7 @@
         packages = {
           default = pkgs.stdenv.mkDerivation (finalAttrs: {
             pname = "pi-extensions";
-            version = "0.20.0";
+            version = "0.21.0";
 
             src = self;
 
@@ -27,7 +27,7 @@
               inherit (finalAttrs) pname version src;
               pnpm = pkgs.pnpm;
               fetcherVersion = 3;
-              hash = "sha256-UD15GH/XXCu+x6c5jfX8ZvyR3a4e5Y1SWJUyPrbESNI=";
+              hash = "sha256-zIpg78f3eBWOK/h6kJJHWYXJRaxx/+o0gWyS9YjFNCw=";
             };
 
             nativeBuildInputs = [
