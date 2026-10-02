@@ -119,6 +119,7 @@ const GuardsSettingsSchema = Type.Object({
 						write_duplicate: RuleSettingsSchema,
 						write_in_readonly: RuleSettingsSchema,
 						broad_search: RuleSettingsSchema,
+						unnecessary_cwd_path: RuleSettingsSchema,
 					}),
 				),
 			),
@@ -153,6 +154,10 @@ type GuardsSettings = {
 				ask: number;
 				fail_mode: "closed" | "open";
 			};
+			unnecessary_cwd_path: {
+				warn: number;
+				fail_mode: "closed" | "open";
+			};
 		};
 	};
 };
@@ -165,6 +170,7 @@ const DEFAULT_SETTINGS: GuardsSettings = {
 			write_duplicate: { warn: 0.5, block: 0.97, fail_mode: "open" },
 			write_in_readonly: { block: 0.8, ask: 0.2, fail_mode: "closed" },
 			broad_search: { block: 0.8, ask: 0.2, fail_mode: "closed" },
+			unnecessary_cwd_path: { warn: 0.5, fail_mode: "open" },
 		},
 	},
 };
@@ -198,6 +204,10 @@ function getSettings(): GuardsSettings {
 					...DEFAULT_SETTINGS.typesafe.rules.broad_search,
 					...rules.broad_search,
 				},
+				unnecessary_cwd_path: {
+					...DEFAULT_SETTINGS.typesafe.rules.unnecessary_cwd_path,
+					...rules.unnecessary_cwd_path,
+				},
 			},
 		},
 	};
@@ -207,7 +217,8 @@ type RuleId =
 	| "read_duplicate"
 	| "write_duplicate"
 	| "write_in_readonly"
-	| "broad_search";
+	| "broad_search"
+	| "unnecessary_cwd_path";
 
 interface AvailableTool {
 	name: string;
@@ -250,11 +261,17 @@ interface TelemetryRecord {
 }
 
 interface TriggerResult {
-	category: "read" | "grep" | "find" | "writeContent" | "writeMutation";
+	category:
+		| "read"
+		| "grep"
+		| "find"
+		| "writeContent"
+		| "writeMutation"
+		| "cwdPath";
 	commands: string[];
 }
 
-function scanTriggers(command: string): TriggerResult[] {
+function scanTriggers(command: string, cwd: string): TriggerResult[] {
 	const results: TriggerResult[] = [];
 
 	for (const [category, patterns] of Object.entries(TRIGGER_PATTERNS)) {
@@ -267,6 +284,10 @@ function scanTriggers(command: string): TriggerResult[] {
 				commands: matched,
 			});
 		}
+	}
+
+	if (command.includes(cwd)) {
+		results.push({ category: "cwdPath", commands: [cwd] });
 	}
 
 	return results;
@@ -335,6 +356,14 @@ function buildApplicableRules(
 			id: "broad_search",
 			question:
 				"Given the working directory, does this command search or traverse an overly broad location (entire home dir, filesystem root, or a system dir)?",
+		});
+	}
+
+	if (categories.has("cwdPath")) {
+		rules.push({
+			id: "unnecessary_cwd_path",
+			question:
+				"The command already runs in `cwd`. Does it unnecessarily repeat `cwd` in a cd command or full path when removing it or using a relative path preserves behavior?",
 		});
 	}
 
@@ -423,12 +452,28 @@ function decideOverall(
 
 	for (const [id, noulValue] of nouls) {
 		const rule = thresholds[id];
-		const isDuplicate = id === "read_duplicate" || id === "write_duplicate";
-		const intervention = isDuplicate ? "warn" : "ask";
-		const threshold = isDuplicate
-			? ((rule as { warn?: number }).warn ?? rule.block)
-			: (rule as { ask: number }).ask;
-		const result = applyBands(noulValue, threshold, rule.block, intervention);
+		let result: RuleDecision;
+
+		if (id === "unnecessary_cwd_path") {
+			result = noulValue >= (rule as { warn: number }).warn ? "warn" : "allow";
+		} else {
+			const standardRule = rule as {
+				block: number;
+				warn?: number;
+				ask?: number;
+			};
+			const isDuplicate = id === "read_duplicate" || id === "write_duplicate";
+			const intervention = isDuplicate ? "warn" : "ask";
+			const threshold = isDuplicate
+				? (standardRule.warn ?? standardRule.block)
+				: (standardRule.ask ?? standardRule.block);
+			result = applyBands(
+				noulValue,
+				threshold,
+				standardRule.block,
+				intervention,
+			);
+		}
 
 		if (priority[result] > priority[decision]) {
 			decision = result;
@@ -458,7 +503,7 @@ async function checkTypeSafeGuards(
 	if (!isToolCallEventType("bash", event)) return;
 
 	const command: string = event.input.command || "";
-	const triggers = scanTriggers(command);
+	const triggers = scanTriggers(command, ctx.cwd);
 	if (triggers.length === 0) return; // No triggers, allow (common fast path)
 
 	const activeTools = pi.getActiveTools();
@@ -498,11 +543,15 @@ async function checkTypeSafeGuards(
 	let userAnswer: boolean | undefined;
 
 	if (decision === "warn" && decidedBy) {
+		const isCwdPathWarning = decidedBy.id === "unnecessary_cwd_path";
+		const advice = isCwdPathWarning
+			? `Use a relative path when it fits the task. Your current cwd is: ${ctx.cwd}.`
+			: "Use a dedicated tool when it fits the task.";
 		pi.sendMessage({
 			customType: "guards-warning",
 			content:
 				`Guard warning: ${decidedBy.id} scored ${(decidedBy.noul * 100).toFixed(0)}%. ` +
-				"The command will run. Use a dedicated tool when it fits the task.",
+				`The command will run. ${advice}`,
 			display: false,
 		});
 	}

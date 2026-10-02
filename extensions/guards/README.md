@@ -28,8 +28,9 @@ The extension scans a bash command for listed commands. It sends one TypeSafe re
 | `write_duplicate` | `sed -i`, `perl -i`, `awk -i inplace`, `tee`, `dd of=`, redirects, and heredocs | The write or edit tool is active. | Warn the model or block the command. |
 | `write_in_readonly` | File writes, moves, copies, removals, permission changes, links, and Git write commands | The write and edit tools are inactive. | Ask the user or block the command. |
 | `broad_search` | `grep`, `rg`, `ripgrep`, `find` | Always. | Ask the user or block the command. |
+| `unnecessary_cwd_path` | The command repeats the current working directory. | Always. | Warn the model only. |
 
-The duplicate checks receive the active tool names, descriptions, and parameter schemas. This lets the model decide if a tool fits the task.
+The duplicate checks receive the active tool names, descriptions, parameter schemas, and prompt guidelines. This lets the model decide if a tool fits the task.
 
 ## Thresholds
 
@@ -40,7 +41,7 @@ Each Noul answer is a value from 0 to 1. Higher values mean the check found a pr
 - `ask`: Ask the user before the command runs. Use this for mode rules.
 - `fail_mode`: Set `open` to allow the command after a TypeSafe error. Set `closed` to block it.
 
-The default duplicate rules warn at `0.5` and fail open. The read rule blocks at `0.85`. The write rule blocks at `0.97`.
+The default duplicate rules warn at `0.5` and fail open. The read rule blocks at `0.85`. The write rule blocks at `0.97`. The current-directory rule only warns at `0.5`.
 
 ```json
 {
@@ -51,7 +52,8 @@ The default duplicate rules warn at `0.5` and fail open. The read rule blocks at
         "read_duplicate": { "warn": 0.5, "block": 0.85, "fail_mode": "open" },
         "write_duplicate": { "warn": 0.5, "block": 0.97, "fail_mode": "open" },
         "write_in_readonly": { "ask": 0.2, "block": 0.8, "fail_mode": "closed" },
-        "broad_search": { "ask": 0.2, "block": 0.8, "fail_mode": "closed" }
+        "broad_search": { "ask": 0.2, "block": 0.8, "fail_mode": "closed" },
+        "unnecessary_cwd_path": { "warn": 0.5, "fail_mode": "open" }
       }
     }
   }
