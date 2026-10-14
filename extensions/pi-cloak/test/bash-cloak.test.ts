@@ -1,4 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@earendil-works/pi-coding-agent", () => ({
+	getAgentDir: () => `/tmp/pi-cloak-test-${process.pid}`,
+}));
+
 import { applyPatterns, applyRules, collectRules, loadState } from "../index";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
