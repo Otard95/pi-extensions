@@ -145,7 +145,7 @@ export async function runSingleAgent(
 				? (base) => ({
 						...base,
 						extensions: base.extensions.filter((ext) =>
-							agent.extensions!.some(
+							agent.extensions?.some(
 								(name) =>
 									ext.resolvedPath.includes(`/${name}/`) ||
 									ext.resolvedPath.endsWith(`/${name}.ts`),

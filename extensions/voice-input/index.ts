@@ -128,8 +128,10 @@ async function consumeQueue(ctx: ExtensionContext): Promise<void> {
 	if (consuming) return;
 	consuming = true;
 
-	let result: JobResult | null;
-	while ((result = await queue.next()) !== null) {
+	while (true) {
+		const result = await queue.next();
+		if (result === null) break;
+
 		pushHistory(result);
 
 		if (result.error === "empty transcript") {

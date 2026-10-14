@@ -1,3 +1,5 @@
+import { at } from "../array/at";
+
 /**
  * Run tasks with bounded concurrency, returning settled results in input order.
  * Prevents rate-limit thrashing when dispatching many API calls at once.
@@ -13,7 +15,7 @@ export async function settledPool<T>(
 		while (nextIndex < tasks.length) {
 			const i = nextIndex++;
 			try {
-				results[i] = { status: "fulfilled", value: await tasks[i]!() };
+				results[i] = { status: "fulfilled", value: await at(tasks, i)() };
 			} catch (reason) {
 				results[i] = { status: "rejected", reason };
 			}

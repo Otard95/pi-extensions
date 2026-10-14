@@ -2,6 +2,7 @@ import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import type { ImageContent, TextContent } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { at } from "../../utils/array/at";
 import { loadJsonConfig } from "../../utils/settings";
 
 type CloakPatternSpec =
@@ -87,7 +88,7 @@ function globToRegExp(glob: string, anchors = true): RegExp {
 	let pattern = anchors ? "^" : "";
 
 	for (let index = 0; index < normalized.length; index++) {
-		const char = normalized[index]!;
+		const char = at(normalized, index);
 		const next = normalized[index + 1];
 		const afterNext = normalized[index + 2];
 
@@ -224,7 +225,7 @@ function applyReplacementTemplate(
 	let result = "";
 
 	for (let index = 0; index < template.length; index++) {
-		const char = template[index]!;
+		const char = at(template, index);
 		if (char !== "$") {
 			result += char;
 			continue;
@@ -252,7 +253,7 @@ function applyReplacementTemplate(
 			let end = index + 1;
 			while (
 				end + 1 < template.length &&
-				/\d/.test(template[end + 1]!) &&
+				/\d/.test(at(template, end + 1)) &&
 				end - index < 2
 			) {
 				end += 1;

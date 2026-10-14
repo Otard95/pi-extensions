@@ -95,7 +95,7 @@ describe("save-md", () => {
 
 			const command = runner.getCommand("save-md");
 			expect(command, "/save-md should be registered").toBeTruthy();
-			await command!.handler("design", runner.createCommandContext());
+			await command?.handler("design", runner.createCommandContext());
 
 			const path = join(cwd, "design.md");
 			expect(await readFile(path, "utf8")).toBe(`${markdown}\n`);
@@ -126,7 +126,7 @@ describe("save-md", () => {
 
 			const command = runner.getCommand("save-md");
 			expect(command).toBeTruthy();
-			await command!.handler("verbatim.md", runner.createCommandContext());
+			await command?.handler("verbatim.md", runner.createCommandContext());
 
 			expect(await readFile(join(cwd, "verbatim.md"), "utf8")).toBe(markdown);
 		} finally {
@@ -143,7 +143,7 @@ describe("save-md", () => {
 
 			const command = runner.getCommand("save-md");
 			expect(command).toBeTruthy();
-			await command!.handler("   ", runner.createCommandContext());
+			await command?.handler("   ", runner.createCommandContext());
 
 			expect(await readdir(cwd)).toEqual([]);
 			expect(notifications).toEqual([
@@ -165,7 +165,7 @@ describe("save-md", () => {
 
 			const command = runner.getCommand("save-md");
 			expect(command).toBeTruthy();
-			await command!.handler("design", runner.createCommandContext());
+			await command?.handler("design", runner.createCommandContext());
 
 			expect(await readFile(path, "utf8")).toBe("existing content\n");
 			expect(notifications).toEqual([
@@ -188,7 +188,7 @@ describe("save-md", () => {
 
 			const command = runner.getCommand("save-md");
 			expect(command).toBeTruthy();
-			await command!.handler("branch", runner.createCommandContext());
+			await command?.handler("branch", runner.createCommandContext());
 
 			expect(await readFile(join(cwd, "branch.md"), "utf8")).toBe(
 				"# Active branch\n",
@@ -207,7 +207,7 @@ describe("save-md", () => {
 
 			const command = runner.getCommand("save-md");
 			expect(command).toBeTruthy();
-			await command!.handler("answer", runner.createCommandContext());
+			await command?.handler("answer", runner.createCommandContext());
 
 			expect(await readdir(cwd)).toEqual([]);
 			expect(notifications).toEqual([
@@ -228,7 +228,7 @@ describe("save-md", () => {
 
 			const command = runner.getCommand("save-md");
 			expect(command).toBeTruthy();
-			await command!.handler("answer", runner.createCommandContext());
+			await command?.handler("answer", runner.createCommandContext());
 
 			expect(await readdir(cwd)).toEqual([]);
 			expect(notifications).toEqual([
