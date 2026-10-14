@@ -9,11 +9,12 @@ import { Result } from "../../utils/monad/result";
 import { Site } from "./site";
 
 const CACHE_DIR = join(process.env["HOME"] ?? "/tmp", ".cache", "pi", "web");
+const CACHE_FORMAT_VERSION = "v2";
 
 function getCachePath(url: URL, rendered = false): string {
 	const hash = `${url.hostname}/${url.pathname.replaceAll(/[/+%;]+/g, "-")}`;
 	const suffix = rendered ? ".rendered.md" : ".md";
-	return join(CACHE_DIR, `${hash}${suffix}`);
+	return join(CACHE_DIR, `${hash}.${CACHE_FORMAT_VERSION}${suffix}`);
 }
 
 /**

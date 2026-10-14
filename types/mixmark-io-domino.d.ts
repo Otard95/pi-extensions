@@ -3,6 +3,8 @@ declare module "@mixmark-io/domino" {
 		getAttribute(name: string): string | null;
 		querySelector(selector: string): DominoElement | null;
 		closest(selector: string): DominoElement | null;
+		remove(): void;
+		readonly innerHTML: string;
 		readonly textContent: string | null;
 	}
 

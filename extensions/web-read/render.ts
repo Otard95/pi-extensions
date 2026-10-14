@@ -6,10 +6,10 @@
  * works on systems like NixOS where pre-built binaries won't run.
  */
 
-import TurndownService from "turndown";
 import { Result } from "../../utils/monad/result";
 import { getSiteCache, writeSiteCache } from "./cache";
 import { fetchedDomains, WEB_READ_SETTINGS } from "./fetch";
+import { extractTitle, htmlToMarkdown } from "./html";
 import type { Site } from "./site";
 
 /** Lazy-loaded playwright-core module */
@@ -25,18 +25,6 @@ async function getPlaywright(): Promise<
 				"playwright-core is not installed. Install it with: npm install playwright-core",
 			),
 	);
-}
-
-function createTurndown(): TurndownService {
-	return new TurndownService({
-		headingStyle: "atx",
-		codeBlockStyle: "fenced",
-	});
-}
-
-function extractTitle(html: string): string {
-	const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-	return match?.[1]?.trim() ?? "";
 }
 
 /**
@@ -110,20 +98,7 @@ export async function renderPage(
 
 		const title = extractTitle(html);
 
-		const td = createTurndown();
-		td.remove([
-			"style",
-			"script",
-			"noscript",
-			"svg",
-			"canvas",
-			"template",
-			"iframe",
-			"object",
-			"embed",
-			"footer",
-		]);
-		const markdown = td.turndown(html);
+		const markdown = htmlToMarkdown(html, WEB_READ_SETTINGS.strip);
 
 		return writeSiteCache(url, title, markdown, true);
 	} catch (err) {

@@ -3,11 +3,11 @@
  */
 
 import { type Static, Type } from "@sinclair/typebox";
-import TurndownService from "turndown";
 import { Option } from "../../utils/monad/option";
 import { Result } from "../../utils/monad/result";
 import { loadSettings } from "../../utils/settings.js";
 import { getSiteCache, writeSiteCache } from "./cache";
+import { extractTitle, htmlToMarkdown } from "./html";
 import type { Site } from "./site";
 
 /**
@@ -15,26 +15,6 @@ import type { Site } from "./site";
  * Used by the playwright renderer to enforce "try simple first" policy.
  */
 export const fetchedDomains = new Set<string>();
-
-/** Elements that never produce useful markdown and are always stripped. */
-const ALWAYS_REMOVE = [
-	"style",
-	"script",
-	"noscript",
-	"svg",
-	"canvas",
-	"template",
-	"iframe",
-	"object",
-	"embed",
-];
-
-/** Elements that can optionally be stripped via settings, with defaults. */
-const OPTIONAL_REMOVE: Record<string, { tags: string[]; default: boolean }> = {
-	nav: { tags: ["nav"], default: false },
-	header: { tags: ["header"], default: false },
-	footer: { tags: ["footer"], default: true },
-};
 
 const WebReadSchema = Type.Object({
 	strip: Type.Optional(
@@ -59,26 +39,6 @@ export const WEB_READ_SETTINGS = loadSettings<WebReadSettings>(
 	"web-read",
 	WebReadSchema,
 ).unwrapOr({});
-
-function createTurndown(): TurndownService {
-	const td = new TurndownService({
-		headingStyle: "atx",
-		codeBlockStyle: "fenced",
-	});
-
-	const remove = [...ALWAYS_REMOVE];
-
-	const strip = WEB_READ_SETTINGS.strip || {};
-
-	for (const [key, opt] of Object.entries(OPTIONAL_REMOVE)) {
-		const val = strip[key as keyof typeof strip];
-		const enabled = typeof val === "boolean" ? val : opt.default;
-		if (enabled) remove.push(...opt.tags);
-	}
-
-	td.remove(remove);
-	return td;
-}
 
 const fetchOpts: RequestInit = {
 	headers: {
@@ -129,7 +89,7 @@ export async function fetchPage(
 
 	// Convert to markdown
 	const title = extractTitle(html);
-	const markdown = createTurndown().turndown(html);
+	const markdown = htmlToMarkdown(html, WEB_READ_SETTINGS.strip);
 
 	return writeSiteCache(url, title, markdown);
 }
@@ -141,12 +101,4 @@ export function normalizeUrl(rawUrl: string): Result<URL> {
 	return Result.try(() => new URL(rawUrl)).map(
 		(url) => new URL(url.origin + url.pathname),
 	);
-}
-
-/**
- * Extract a title from HTML.
- */
-function extractTitle(html: string): string {
-	const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-	return match?.[1]?.trim() ?? "";
 }
