@@ -355,7 +355,7 @@ function buildApplicableRules(
 		rules.push({
 			id: "broad_search",
 			question:
-				"Given the working directory, does this command search or traverse an overly broad location (entire home dir, filesystem root, or a system dir)?",
+				"Does this command recursively search filesystem contents or traverse files from an overly broad location, such as the entire home directory, filesystem root, or a system directory? Do not count commands that only filter output from another command, such as ps, journalctl, git, or systemctl.",
 		});
 	}
 
@@ -432,6 +432,20 @@ function applyBands(
 	if (noul >= block) return "block";
 	if (noul >= intervene) return intervention;
 	return "allow";
+}
+
+function getRuleTriggers(ruleId: RuleId, triggers: TriggerResult[]): string[] {
+	const categories: Record<RuleId, TriggerResult["category"][]> = {
+		read_duplicate: ["read", "grep", "find"],
+		write_duplicate: ["writeContent"],
+		write_in_readonly: ["writeMutation"],
+		broad_search: ["grep", "find"],
+		unnecessary_cwd_path: ["cwdPath"],
+	};
+
+	return triggers
+		.filter((trigger) => categories[ruleId].includes(trigger.category))
+		.flatMap((trigger) => trigger.commands);
 }
 
 function decideOverall(
@@ -564,9 +578,10 @@ async function checkTypeSafeGuards(
 			};
 		}
 
+		const matchedTriggers = getRuleTriggers(decidedBy.id, triggers);
 		const confirmed = await ctx.ui.confirm(
 			"Command flagged",
-			`This bash command may violate a mode restriction.\n\nRule: ${decidedBy.id}\nConfidence: ${(decidedBy.noul * 100).toFixed(0)}%\n\nProceed anyway?`,
+			`This bash command may violate a mode restriction.\n\nRule: ${decidedBy.id}\nTrigger: ${matchedTriggers.join(", ")}\nConfidence: ${(decidedBy.noul * 100).toFixed(0)}%\n\nCommand:\n${command}\n\nProceed anyway?`,
 		);
 		userAnswer = confirmed;
 		if (!confirmed) {
