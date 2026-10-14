@@ -9,6 +9,11 @@ const MODE_COMPLETION_OPTIONS = [
 		label: "tools",
 		description: "Compress tool calls",
 	},
+	{
+		value: "turns",
+		label: "turns",
+		description: "Compress conversation turns",
+	},
 ];
 const KEEP_KEYWORD = [
 	{

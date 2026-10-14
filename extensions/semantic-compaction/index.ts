@@ -21,7 +21,19 @@ import { completions } from "./completions";
 import { populateSession } from "./session";
 import { compactTurns } from "./turn-compaction";
 
+let modelToRestore: { provider: string; id: string } | undefined;
+
 export default function (pi: ExtensionAPI) {
+	pi.on("session_start", async (event, ctx) => {
+		if (event.reason !== "new" || !modelToRestore) return;
+		const model = ctx.modelRegistry.find(
+			modelToRestore.provider,
+			modelToRestore.id,
+		);
+		modelToRestore = undefined;
+		if (model) await pi.setModel(model);
+	});
+
 	pi.registerCommand("semantic-compact", {
 		description: [
 			"Run semantic compaction and create a new session with the result.",
@@ -72,10 +84,16 @@ export default function (pi: ExtensionAPI) {
 			if (!result) return;
 
 			const parentSession = ctx.sessionManager.getSessionFile();
-			await ctx.newSession({
+			const chosenModel = ctx.model
+				? { provider: ctx.model.provider, id: ctx.model.id }
+				: undefined;
+			modelToRestore = chosenModel;
+			const newSessionResult = await ctx.newSession({
 				parentSession,
 				setup: async (sm) => {
 					await populateSession(sm, result.rebuilt);
+					if (chosenModel)
+						sm.appendModelChange(chosenModel.provider, chosenModel.id);
 				},
 				withSession: async (newCtx) => {
 					newCtx.ui.notify(
@@ -84,6 +102,7 @@ export default function (pi: ExtensionAPI) {
 					);
 				},
 			});
+			if (newSessionResult.cancelled) modelToRestore = undefined;
 		},
 	});
 }
