@@ -9,6 +9,7 @@ export interface CompactionLogContext {
 	mode: "tools" | "turns";
 	group?: number;
 	sessionId?: string;
+	details?: Record<string, unknown>;
 }
 
 export async function logCompactionFailure(

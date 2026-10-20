@@ -74,6 +74,47 @@ interface TurnCompaction {
 	compacted: string;
 }
 
+async function getModelSelectionDetails(
+	ctx: ExtensionCommandContext,
+	refreshError: unknown,
+): Promise<Record<string, unknown>> {
+	const available = ctx.modelRegistry.getAvailable();
+	const preferred = new Set(
+		TURN_COMPACTION_PREFERRED.map(([provider, id]) => `${provider}/${id}`),
+	);
+	const candidates = available.filter((model) =>
+		preferred.has(`${model.provider}/${model.id}`),
+	);
+	const checks = await Promise.all(
+		candidates.map(async (model) => {
+			const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+			return {
+				provider: model.provider,
+				id: model.id,
+				authenticated: auth.ok,
+				...(auth.ok ? {} : { error: auth.error }),
+			};
+		}),
+	);
+	return {
+		currentModel: ctx.model
+			? { provider: ctx.model.provider, id: ctx.model.id }
+			: null,
+		availableModelCount: available.length,
+		matchingModels: checks,
+		missingPreferredModels: TURN_COMPACTION_PREFERRED.filter(
+			([provider, id]) => !candidates.some((model) => model.provider === provider && model.id === id),
+		).map(([provider, id]) => ({ provider, id })),
+		...(refreshError === undefined
+			? {}
+			: { refreshError: serializeSelectionError(refreshError) }),
+	};
+}
+
+function serializeSelectionError(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}
+
 /**
  * Run turn compaction: group turns, compact each group, rebuild entries.
  * Handles confirmation, progress, and error reporting.
@@ -107,11 +148,27 @@ export async function compactTurns(
 	);
 	if (!confirmed) return null;
 
+	let refreshError: unknown;
+	try {
+		await ctx.modelRegistry.refresh();
+	} catch (error) {
+		refreshError = error;
+	}
 	const choice = await pickModel(ctx, {
 		preferred: TURN_COMPACTION_PREFERRED,
 	});
 
 	if (!choice) {
+		await logCompactionFailure(
+			"error",
+			"model-selection-failed",
+			new Error("No authenticated model available for turn compaction"),
+			{
+				mode: "turns",
+				sessionId: ctx.sessionManager.getHeader()?.id,
+				details: await getModelSelectionDetails(ctx, refreshError),
+			},
+		);
 		ctx.ui.notify(
 			"No authenticated model available for turn compaction",
 			"error",
