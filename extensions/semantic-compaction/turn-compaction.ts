@@ -15,6 +15,7 @@ import { logCompactionFailure } from "./log";
 // --- Model selection ---
 
 const TURN_COMPACTION_PREFERRED: ReadonlyArray<readonly [string, string]> = [
+	["openai-codex", "gpt-5.6-terra"],
 	["anthropic", "claude-sonnet-5-5"],
 	["anthropic", "claude-sonnet-5"],
 	["anthropic", "claude-sonnet-4-6"],
@@ -22,7 +23,6 @@ const TURN_COMPACTION_PREFERRED: ReadonlyArray<readonly [string, string]> = [
 	["github-copilot", "claude-sonnet-5.5"],
 	["github-copilot", "claude-sonnet-5"],
 	["github-copilot", "claude-sonnet-4.6"],
-	["openai-codex", "gpt-5.6-terra"],
 	["github-copilot", "gpt-5.4"],
 ];
 
