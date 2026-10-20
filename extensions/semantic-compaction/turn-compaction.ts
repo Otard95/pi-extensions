@@ -286,7 +286,18 @@ async function compactTurnGroup(
 		.trim();
 
 	if (!compacted) {
-		throw new Error("Turn compaction returned empty response");
+		const error = new Error("Turn compaction returned empty response");
+		Object.assign(error, {
+			model: { provider: choice.model.provider, id: choice.model.id },
+			response: {
+				stopReason: response.stopReason,
+				content: response.content.map((part) => ({
+					type: part.type,
+					...(part.type === "text" ? { textLength: part.text.length } : {}),
+				})),
+			},
+		});
+		throw error;
 	}
 
 	return { group, compacted };
