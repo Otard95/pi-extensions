@@ -18,6 +18,7 @@ import {
 } from "./args";
 import { compactTools } from "./compaction";
 import { completions } from "./completions";
+import { logCompactionFailure } from "./log";
 import { populateSession } from "./session";
 import { compactTurns } from "./turn-compaction";
 
@@ -58,51 +59,68 @@ export default function (pi: ExtensionAPI) {
 		handler: async (args, ctx) => {
 			const argsResult = Result.try(() => parseArgs(args));
 			if (argsResult.isErr()) {
-				ctx.ui.notify(argsResult.unwrapErr().message, "error");
+				const error = argsResult.unwrapErr();
+				await logCompactionFailure("error", "invalid-arguments", error, {
+					mode: "tools",
+					sessionId: ctx.sessionManager.getHeader()?.id,
+				});
+				ctx.ui.notify(error.message, "error");
 				return;
 			}
 			const compactArgs = argsResult.unwrap();
 
-			const entries = ctx.sessionManager.getBranch();
-			const entriesToCompact = excludeKeptEntries(entries, compactArgs.keep);
+			try {
+				const entries = ctx.sessionManager.getBranch();
+				const entriesToCompact = excludeKeptEntries(entries, compactArgs.keep);
 
-			const result =
-				compactArgs.mode === "turns"
-					? await compactTurns(
-							entriesToCompact,
-							entries,
-							compactArgs.threshold,
-							ctx,
-						)
-					: await compactTools(
-							entriesToCompact,
-							entries,
-							compactArgs.threshold,
-							ctx,
+				const result =
+					compactArgs.mode === "turns"
+						? await compactTurns(
+								entriesToCompact,
+								entries,
+								compactArgs.threshold,
+								ctx,
+							)
+						: await compactTools(
+								entriesToCompact,
+								entries,
+								compactArgs.threshold,
+								ctx,
+							);
+
+				if (!result) return;
+
+				const parentSession = ctx.sessionManager.getSessionFile();
+				const chosenModel = ctx.model
+					? { provider: ctx.model.provider, id: ctx.model.id }
+					: undefined;
+				modelToRestore = chosenModel;
+				const newSessionResult = await ctx.newSession({
+					parentSession,
+					setup: async (sm) => {
+						await populateSession(sm, result.rebuilt);
+						if (chosenModel)
+							sm.appendModelChange(chosenModel.provider, chosenModel.id);
+					},
+					withSession: async (newCtx) => {
+						newCtx.ui.notify(
+							`Compacted session created\n  ${result.stats.replace(/\n/g, "\n  ")}`,
+							"info",
 						);
-
-			if (!result) return;
-
-			const parentSession = ctx.sessionManager.getSessionFile();
-			const chosenModel = ctx.model
-				? { provider: ctx.model.provider, id: ctx.model.id }
-				: undefined;
-			modelToRestore = chosenModel;
-			const newSessionResult = await ctx.newSession({
-				parentSession,
-				setup: async (sm) => {
-					await populateSession(sm, result.rebuilt);
-					if (chosenModel)
-						sm.appendModelChange(chosenModel.provider, chosenModel.id);
-				},
-				withSession: async (newCtx) => {
-					newCtx.ui.notify(
-						`Compacted session created\n  ${result.stats.replace(/\n/g, "\n  ")}`,
-						"info",
-					);
-				},
-			});
-			if (newSessionResult.cancelled) modelToRestore = undefined;
+					},
+				});
+				if (newSessionResult.cancelled) modelToRestore = undefined;
+			} catch (error) {
+				modelToRestore = undefined;
+				await logCompactionFailure("error", "command-failed", error, {
+					mode: compactArgs.mode,
+					sessionId: ctx.sessionManager.getHeader()?.id,
+				});
+				ctx.ui.notify(
+					"Semantic compaction failed. See the failure log.",
+					"error",
+				);
+			}
 		},
 	});
 }

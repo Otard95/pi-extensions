@@ -151,19 +151,33 @@ export async function compactTurns(
 	ctx.ui.setStatus("compaction", undefined);
 
 	const compactions: TurnCompaction[] = [];
-	const failures: string[] = [];
+	const failures: Array<{ group: number; reason: unknown }> = [];
 	for (let i = 0; i < settled.length; i++) {
 		const result = at(settled, i);
 		if (result.status === "fulfilled") {
 			compactions.push(result.value);
 		} else {
-			failures.push(`Group ${i + 1}: ${result.reason}`);
+			failures.push({ group: i + 1, reason: result.reason });
 		}
 	}
 
+	const failureMessages = failures.map(
+		({ group, reason }) => `Group ${group}: ${reason}`,
+	);
+	const failureLevel = compactions.length === 0 ? "error" : "warning";
+	await Promise.all(
+		failures.map(({ group, reason }) =>
+			logCompactionFailure(failureLevel, "turn-group-failed", reason, {
+				mode: "turns",
+				group,
+				sessionId: ctx.sessionManager.getHeader()?.id,
+			}),
+		),
+	);
+
 	if (compactions.length === 0) {
 		ctx.ui.notify(
-			`All turn compactions failed:\n${failures.join("\n")}`,
+			`All turn compactions failed:\n${failureMessages.join("\n")}`,
 			"error",
 		);
 		return null;
@@ -171,7 +185,7 @@ export async function compactTurns(
 
 	if (failures.length > 0) {
 		ctx.ui.notify(
-			`${failures.length} group(s) failed (will be left as-is):\n${failures.join("\n")}`,
+			`${failures.length} group(s) failed (will be left as-is):\n${failureMessages.join("\n")}`,
 			"warning",
 		);
 	}

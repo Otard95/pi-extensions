@@ -47,5 +47,6 @@ Turns = entries from one user message up to (but not including) the next.
 - **Confirmation** — Prompts before running, showing how many groups will be compacted.
 - **New session** — Creates a new session with the compacted entries, linking back to the parent session.
 - **Progress** — Shows status updates as groups are compacted.
-- **Partial failure** — If some groups fail, they are left as-is and a warning is shown. Only fails completely if all groups fail.
+- **Partial failure** — If some groups fail, they stay unchanged and the extension shows a warning. The command fails only if all groups fail.
+- **Failure log** — The extension writes warnings and errors to `~/.config/pi/semantic-compaction/failures.jsonl`. Each record includes the time, session ID, group number, error message, stack trace, cause, and extra error properties.
 - **Token savings** — Reports entry count and token savings after completion.
