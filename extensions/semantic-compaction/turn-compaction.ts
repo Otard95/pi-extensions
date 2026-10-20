@@ -10,53 +10,50 @@ import { pickModel } from "../../utils/model/pick";
 import { groupTurns, splitIntoTurns, type TurnGroup } from "./analysis";
 import type { CompactionResult } from "./compaction";
 import { formatEntryLines } from "./formatting";
+import { logCompactionFailure } from "./log";
 
 // --- Model selection ---
 
 const TURN_COMPACTION_PREFERRED: ReadonlyArray<readonly [string, string]> = [
+	["anthropic", "claude-sonnet-5-5"],
+	["anthropic", "claude-sonnet-5"],
 	["anthropic", "claude-sonnet-4-6"],
 	["anthropic", "claude-sonnet-4-5"],
-	["anthropic", "claude-sonnet-4-0"],
-	["openai", "gpt-4.1"],
-	["google", "gemini-2.5-pro"],
+	["github-copilot", "claude-sonnet-5.5"],
+	["github-copilot", "claude-sonnet-5"],
 	["github-copilot", "claude-sonnet-4.6"],
-	["github-copilot", "claude-sonnet-4.5"],
-	["github-copilot", "gpt-4.1"],
-	["github-copilot", "gemini-2.5-pro"],
+	["openai-codex", "gpt-5.6-terra"],
+	["github-copilot", "gpt-5.4"],
 ];
 
 // --- System prompt ---
 
-const TURN_COMPACTION_SYSTEM_PROMPT = `You are a conversation compaction agent. You compress conversation turns into terse structured summaries.
+const TURN_COMPACTION_SYSTEM_PROMPT = `You are a context summarization assistant. You receive ONE SEGMENT of a longer conversation between a user and an AI coding assistant.
 
-You will receive a conversation between a user and an AI coding assistant containing messages, thinking blocks, tool calls, and tool results. Produce a structured summary following the EXACT format below.
+Your summary REPLACES that segment in place. The conversation continues before and after it, and other segments are summarized separately. So:
 
-Do NOT continue the conversation. Do NOT respond to any questions in the conversation. ONLY output the structured summary.
+- Summarize ONLY what is in this segment. Do not describe the session as a whole.
+- Do not write session-level status, next steps, or conclusions. Later turns you cannot see may change them.
+- Do not assume the segment starts a task or finishes one. It is a middle slice.
+- If the segment contains an earlier summary block, carry its content forward into yours. Never drop it.
 
-## Hard rules
+Do NOT continue the conversation. Do NOT answer questions in it. Output only the summary.
 
-1. NEVER fabricate content. If a user message doesn't exist in the input, do NOT invent one.
-2. NEVER include thinking blocks in output. If thinking revealed a non-obvious decision or direction change, extract ONE line into Decisions.
-3. NEVER reproduce code. Describe what was written/changed.
-4. NEVER reproduce raw tool output. Distill to what was learned.
-5. Output MUST be <20% of input length.
+Write these labeled sections. Omit any that do not apply:
 
-## Output format
+Asked: what the user wanted in this segment, in their terms.
+Discussed: the exchange itself — positions, objections, corrections, rejected options, and why. Keep the reasoning that a later reader could not reconstruct from the outcome alone. This section matters most, give it the most room.
+Decided: each decision with its rationale.
+Did: work performed and what it changed.
+Found: findings, errors, and facts that stay relevant.
+Files: read and written paths.
+Open: questions or disagreements still unresolved at the end of the segment.
 
-Fill in ONLY these fields. Leave a field blank if not applicable. Do NOT add any other content.
-
-Request: <what the user asked for — one line>
-Files read: <comma-separated paths>
-Files written: <comma-separated paths of created/edited files>
-Commands: <significant shell commands and key results — one per line, omit if none>
-Decisions: <choices made and why — one per line, omit if none>
-Outcome: <what changed, what was resolved, what remains open — one to three lines max>
-
-When multiple turns are grouped, produce ONE summary covering all of them.
-
-## Style
-
-Terse. Fragments OK. Abbreviate (fn, config, impl, pkg, deps). No filler, no narration.`;
+Rules:
+- Never invent content that is not in the segment.
+- Describe code and tool output, do not reproduce them.
+- Preserve exact paths, identifiers, and error strings.
+- Be terse everywhere except Discussed and Decided.`;
 
 // --- Prompt building ---
 
@@ -65,8 +62,7 @@ function buildTurnGroupPrompt(group: TurnGroup): string {
 		.map((turn) => formatEntryLines(turn).join("\n"))
 		.join("\n\n");
 
-	return `Summarize the following conversation into the structured template described in your instructions.
-Output ONLY the filled-in template fields. Do NOT reproduce the conversation format.
+	return `Summarize this conversation segment as described in your instructions.
 
 <conversation>
 ${conversation}

@@ -335,9 +335,8 @@ describe("compactTurns", () => {
 		// Verify complete was called for each group
 		expect(mockComplete).toHaveBeenCalled();
 
-		// Verify the system prompt contains turn compaction instructions
 		const [choice, systemPrompt] = at(mockComplete.mock.calls, 0);
-		expect(systemPrompt).toContain("conversation compaction agent");
+		expect(systemPrompt).toContain("context summarization assistant");
 		expect(choice).toBe(MOCK_MODEL_CHOICE);
 	});
 
