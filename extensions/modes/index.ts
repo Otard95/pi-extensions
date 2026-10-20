@@ -227,7 +227,7 @@ export default function modesExtension(pi: ExtensionAPI) {
 				customType: "mode-switch",
 				content: mgr.activeMode
 					? `Mode switched to "${mgr.activeMode.name}". You now have different capabilities and constraints. Review the system prompt for your current role.`
-					: `Mode cleared — default settings restored. You now have full tool access. Review the system prompt for your current role.`,
+					: "Mode cleared. Its prompt and restrictions no longer apply. Ignore all prior mode instructions, including read-only or workshop constraints. Follow the current system prompt and use the current tool list.",
 				display: false,
 			};
 
