@@ -29,6 +29,8 @@ vi.mock("../../../utils/model/pick", () => ({
 	pickModel: (...args: unknown[]) => mockPickModel(...args),
 }));
 
+vi.mock("../log", () => ({ logCompactionFailure: vi.fn() }));
+
 const MOCK_MODEL_CHOICE = {
 	model: { id: "test-model", provider: "test" },
 	auth: { apiKey: "test-key" },
@@ -257,6 +259,7 @@ function mockCommandContext() {
 		sessionManager: {
 			getBranch: vi.fn(),
 			getSessionFile: vi.fn().mockReturnValue("test-session"),
+			getHeader: vi.fn().mockReturnValue({ id: "test-session" }),
 		},
 		newSession: vi.fn(),
 		model: { provider: "test", id: "test-model" },
@@ -338,6 +341,25 @@ describe("compactTurns", () => {
 		const [choice, systemPrompt] = at(mockComplete.mock.calls, 0);
 		expect(systemPrompt).toContain("context summarization assistant");
 		expect(choice).toBe(MOCK_MODEL_CHOICE);
+	});
+
+	it("shows the provider error when a turn group fails", async () => {
+		mockPickModel.mockResolvedValue(MOCK_MODEL_CHOICE);
+		mockComplete.mockResolvedValue({
+			content: [],
+			stopReason: "error",
+			errorMessage: "Provider rejected request",
+		});
+
+		const entries = multiTurnConversation();
+		const ctx = mockCommandContext();
+		const result = await compactTurns(entries, entries, 0, ctx);
+
+		expect(result).toBeNull();
+		expect(ctx.ui.notify).toHaveBeenCalledWith(
+			expect.stringContaining("test/test-model): Provider rejected request"),
+			"error",
+		);
 	});
 
 	it("passes formatted turn content to complete", async () => {

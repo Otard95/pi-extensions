@@ -103,7 +103,10 @@ async function getModelSelectionDetails(
 		availableModelCount: available.length,
 		matchingModels: checks,
 		missingPreferredModels: TURN_COMPACTION_PREFERRED.filter(
-			([provider, id]) => !candidates.some((model) => model.provider === provider && model.id === id),
+			([provider, id]) =>
+				!candidates.some(
+					(model) => model.provider === provider && model.id === id,
+				),
 		).map(([provider, id]) => ({ provider, id })),
 		...(refreshError === undefined
 			? {}
@@ -286,7 +289,11 @@ async function compactTurnGroup(
 		.trim();
 
 	if (!compacted) {
-		const error = new Error("Turn compaction returned empty response");
+		const error = new Error(
+			response.stopReason === "error" || response.stopReason === "aborted"
+				? `Turn compaction failed (${choice.model.provider}/${choice.model.id}): ${response.errorMessage ?? response.stopReason}`
+				: "Turn compaction returned empty response",
+		);
 		Object.assign(error, {
 			model: { provider: choice.model.provider, id: choice.model.id },
 			response: {
