@@ -70,12 +70,23 @@ export default async function selfImprovementExtension(pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("learning", {
-		description: "Enable or disable self-improvement learning",
-		handler: async (_args, ctx) => {
-			learning = !learning;
+		description: "Enable learning and review a number of recent turns",
+		handler: async (args, ctx) => {
+			if (learning) {
+				learning = false;
+				setIndicator(ctx);
+				ctx.ui.notify("Learning disabled.", "info");
+				return;
+			}
+			const turns = Number(args);
+			if (!Number.isInteger(turns) || turns < 1) {
+				ctx.ui.notify("Use /learning <turns>.", "warning");
+				return;
+			}
+			learning = true;
 			setIndicator(ctx);
-			ctx.ui.notify(`Learning ${learning ? "enabled" : "disabled"}.`, "info");
-			if (learning && !evaluating) void runEvaluation(ctx, 3);
+			ctx.ui.notify("Learning enabled.", "info");
+			if (!evaluating) void runEvaluation(ctx, turns);
 		},
 	});
 	pi.registerCommand("learning-review", {
@@ -99,28 +110,44 @@ export default async function selfImprovementExtension(pi: ExtensionAPI) {
 				return;
 			}
 			await ctx.ui.custom<void>(
-				(tui, theme, _keybindings, done) => ({
-					render: (width) => {
-						const border = theme.fg("accent", "─".repeat(Math.max(1, width)));
-						return [
-							border,
-							theme.fg("accent", theme.bold("Learning rules")),
-							border,
-							...text
-								.split("\n")
-								.flatMap((line) => renderReviewLine(line, theme, width)),
-							border,
-							theme.fg("dim", "Press Esc or q to close"),
-							border,
-						];
-					},
-					handleInput: (data) => {
-						if (matchesKey(data, Key.escape) || data === "q") done(undefined);
-						tui.requestRender();
-					},
-					invalidate: () => {},
-				}),
-				{ overlay: true, overlayOptions: { width: "70%" } },
+				(tui, theme, _keybindings, done) => {
+					let scrollOffset = 0;
+					return {
+						render: (width) => {
+							const border = theme.fg("accent", "─".repeat(Math.max(1, width)));
+							const lines = [
+								border,
+								theme.fg("accent", theme.bold("Learning rules")),
+								border,
+								...text
+									.split("\n")
+									.flatMap((line) => renderReviewLine(line, theme, width)),
+								border,
+								theme.fg("dim", "↑/↓ scroll · q/Esc close"),
+								border,
+							];
+							const maxHeight = Math.max(1, Math.floor(tui.terminal.rows * 0.8));
+							scrollOffset = Math.min(
+								scrollOffset,
+								Math.max(0, lines.length - maxHeight),
+							);
+							return lines.slice(scrollOffset, scrollOffset + maxHeight);
+						},
+						handleInput: (data) => {
+							if (matchesKey(data, Key.escape) || data === "q") done(undefined);
+							else if (matchesKey(data, Key.up) || data === "k")
+								scrollOffset = Math.max(0, scrollOffset - 1);
+							else if (matchesKey(data, Key.down) || data === "j")
+								scrollOffset++;
+							tui.requestRender();
+						},
+						invalidate: () => {},
+					};
+				},
+				{
+					overlay: true,
+					overlayOptions: { width: "70%", maxHeight: "80%", margin: 1 },
+				},
 			);
 		},
 	});
