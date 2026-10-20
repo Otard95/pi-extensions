@@ -109,12 +109,11 @@ export async function compactTurns(
 
 	const choice = await pickModel(ctx, {
 		preferred: TURN_COMPACTION_PREFERRED,
-		noFallback: true,
 	});
 
 	if (!choice) {
 		ctx.ui.notify(
-			"No authenticated sonnet-class model available for turn compaction",
+			"No authenticated model available for turn compaction",
 			"error",
 		);
 		return null;
@@ -204,9 +203,7 @@ async function compactTurnGroup(
 	signal?: AbortSignal,
 ): Promise<TurnCompaction> {
 	if (!choice) {
-		throw new Error(
-			"No authenticated sonnet-class model available for turn compaction",
-		);
+		throw new Error("No authenticated model available for turn compaction");
 	}
 
 	const userMessage = buildTurnGroupPrompt(group);
