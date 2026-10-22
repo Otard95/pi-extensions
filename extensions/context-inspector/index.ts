@@ -14,8 +14,10 @@ import type {
 	ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { ContextInspector } from "./inspector";
+import { registerToolTrace } from "./tool-trace";
 
 export default function contextInspectorExtension(pi: ExtensionAPI) {
+	registerToolTrace(pi);
 	const openInspector = async (ctx: ExtensionContext) => {
 		if (!ctx.hasUI) {
 			ctx.ui.notify("Context inspector requires interactive mode", "warning");
