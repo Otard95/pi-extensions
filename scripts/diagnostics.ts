@@ -6,7 +6,7 @@
  * etc.) that are normally only visible via the language server.
  *
  * Usage:
- *   npm run check:full
+ *   pnpm run check:full
  */
 
 import ts from "typescript";
