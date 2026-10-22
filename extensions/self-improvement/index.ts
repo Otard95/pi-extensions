@@ -126,7 +126,10 @@ export default async function selfImprovementExtension(pi: ExtensionAPI) {
 								theme.fg("dim", "↑/↓ scroll · q/Esc close"),
 								border,
 							];
-							const maxHeight = Math.max(1, Math.floor(tui.terminal.rows * 0.8));
+							const maxHeight = Math.max(
+								1,
+								Math.floor(tui.terminal.rows * 0.8),
+							);
 							scrollOffset = Math.min(
 								scrollOffset,
 								Math.max(0, lines.length - maxHeight),

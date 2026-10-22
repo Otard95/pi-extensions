@@ -22,7 +22,7 @@ async function getPlaywright(): Promise<
 	return (await Result.fromPromise(import("playwright-core"))).mapErr(
 		() =>
 			new Error(
-				"playwright-core is not installed. Install it with: npm install playwright-core",
+				"playwright-core is not installed. Install it with: pnpm install playwright-core",
 			),
 	);
 }

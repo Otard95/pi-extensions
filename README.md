@@ -99,7 +99,7 @@ direnv allow
 ### Install Dependencies
 
 ```bash
-npm install
+pnpm install
 ```
 
 The `devDependencies` provide TypeScript types for:
@@ -111,7 +111,7 @@ The `devDependencies` provide TypeScript types for:
 ### Type Checking
 
 ```bash
-npm run check
+pnpm run check
 ```
 
 Runs TypeScript type checking without emitting files.
