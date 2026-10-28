@@ -1,14 +1,16 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { ModelChoice } from "./type";
 
-const DEFAULT_PREFERRED: ReadonlyArray<readonly [string, string]> = [
-	["google", "gemini-2.5-flash"],
-	["anthropic", "claude-haiku-4-5"],
-	["openai", "gpt-5.4-mini"],
-	["openai-codex", "gpt-5.1-codex-mini"],
-	["github-copilot", "gpt-5-mini"],
-	["openai", "gpt-4.1-mini"],
-	["openai", "gpt-4o-mini"],
+export const DEFAULT_PREFERRED: ReadonlyArray<readonly [string, string]> = [
+	["openai-codex", "gpt-5.6-terra"],
+	["anthropic", "claude-sonnet-5-5"],
+	["anthropic", "claude-sonnet-5"],
+	["anthropic", "claude-sonnet-4-6"],
+	["anthropic", "claude-sonnet-4-5"],
+	["github-copilot", "claude-sonnet-5.5"],
+	["github-copilot", "claude-sonnet-5"],
+	["github-copilot", "claude-sonnet-4.6"],
+	["github-copilot", "gpt-5.4"],
 ];
 
 type PickModelOptions = {

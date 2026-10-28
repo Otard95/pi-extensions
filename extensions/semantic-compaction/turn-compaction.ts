@@ -6,25 +6,11 @@ import type {
 import { at } from "../../utils/array/at";
 import { settledPool } from "../../utils/async/pool";
 import { complete } from "../../utils/model/complete";
-import { pickModel } from "../../utils/model/pick";
+import { DEFAULT_PREFERRED, pickModel } from "../../utils/model/pick";
 import { groupTurns, splitIntoTurns, type TurnGroup } from "./analysis";
 import type { CompactionResult } from "./compaction";
 import { formatEntryLines } from "./formatting";
 import { logCompactionFailure } from "./log";
-
-// --- Model selection ---
-
-const TURN_COMPACTION_PREFERRED: ReadonlyArray<readonly [string, string]> = [
-	["openai-codex", "gpt-5.6-terra"],
-	["anthropic", "claude-sonnet-5-5"],
-	["anthropic", "claude-sonnet-5"],
-	["anthropic", "claude-sonnet-4-6"],
-	["anthropic", "claude-sonnet-4-5"],
-	["github-copilot", "claude-sonnet-5.5"],
-	["github-copilot", "claude-sonnet-5"],
-	["github-copilot", "claude-sonnet-4.6"],
-	["github-copilot", "gpt-5.4"],
-];
 
 // --- System prompt ---
 
@@ -80,7 +66,7 @@ async function getModelSelectionDetails(
 ): Promise<Record<string, unknown>> {
 	const available = ctx.modelRegistry.getAvailable();
 	const preferred = new Set(
-		TURN_COMPACTION_PREFERRED.map(([provider, id]) => `${provider}/${id}`),
+		DEFAULT_PREFERRED.map(([provider, id]) => `${provider}/${id}`),
 	);
 	const candidates = available.filter((model) =>
 		preferred.has(`${model.provider}/${model.id}`),
@@ -102,7 +88,7 @@ async function getModelSelectionDetails(
 			: null,
 		availableModelCount: available.length,
 		matchingModels: checks,
-		missingPreferredModels: TURN_COMPACTION_PREFERRED.filter(
+		missingPreferredModels: DEFAULT_PREFERRED.filter(
 			([provider, id]) =>
 				!candidates.some(
 					(model) => model.provider === provider && model.id === id,
@@ -157,9 +143,7 @@ export async function compactTurns(
 	} catch (error) {
 		refreshError = error;
 	}
-	const choice = await pickModel(ctx, {
-		preferred: TURN_COMPACTION_PREFERRED,
-	});
+	const choice = await pickModel(ctx);
 
 	if (!choice) {
 		await logCompactionFailure(
