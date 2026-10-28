@@ -155,6 +155,20 @@ export function toolResult(
 	};
 }
 
+/** codemode writes this entry between a tool call and its result when a
+ *  script uses store()/load(). */
+export function codemodeStore(): SessionEntry {
+	const id = nextId();
+	return {
+		id,
+		parentId: `parent-${id}`,
+		type: "custom",
+		timestamp: new Date().toISOString(),
+		customType: "codemode-store",
+		data: {},
+	} as SessionEntry;
+}
+
 export function toolCompaction(content: string): SessionEntry {
 	const id = nextId();
 	return {

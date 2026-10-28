@@ -14,6 +14,7 @@ import {
 	assistantMixed,
 	assistantText,
 	assistantToolCall,
+	codemodeStore,
 	multiTurnConversation,
 	resetIds,
 	simpleConversation,
@@ -283,6 +284,39 @@ describe("findToolGroups", () => {
 		// Consecutive tool calls should form one group
 		expect(groups).toHaveLength(1);
 		expect(groups[0]?.toolEntries).toHaveLength(4);
+	});
+
+	it("keeps a codemode-store entry inside the tool group", () => {
+		// codemode writes a codemode-store custom entry between the call and its
+		// result when a script uses store(). The group must span the result so it
+		// is never orphaned from its call during rebuild.
+		const entries = [
+			userMessage("run a script"),
+			assistantMixed("running", { name: "codemode", args: { code: "x" } }),
+			codemodeStore(),
+			toolResult("codemode", "done"),
+			assistantText("Finished."),
+		];
+		const groups = findToolGroups(entries);
+		expect(groups).toHaveLength(1);
+		expect(groups[0]?.toolEntries).toHaveLength(3); // call + store + result
+		expect(groups[0]?.endId).toBe(entries[3]?.id); // ends on the result
+	});
+
+	it("spans codemode-store entries across consecutive calls", () => {
+		const entries = [
+			userMessage("run two scripts"),
+			assistantMixed("first", { name: "codemode", args: { code: "a" } }),
+			codemodeStore(),
+			toolResult("codemode", "a done"),
+			assistantToolCall({ name: "codemode", args: { code: "b" } }),
+			codemodeStore(),
+			toolResult("codemode", "b done"),
+			assistantText("Both done."),
+		];
+		const groups = findToolGroups(entries);
+		expect(groups).toHaveLength(1);
+		expect(groups[0]?.endId).toBe(entries[6]?.id); // ends on the last result
 	});
 
 	it("returns empty for entries with no tool calls", () => {

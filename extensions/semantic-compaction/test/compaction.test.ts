@@ -5,10 +5,13 @@ import { last } from "../../../utils/array/last";
 import { findToolGroups, groupTurns, splitIntoTurns } from "../analysis";
 import { buildCompactionPrompt, compactTools } from "../compaction";
 import { formatEntryLines } from "../formatting";
+import { rebuildEntries } from "../session";
 import { compactTurns, rebuildEntriesWithTurns } from "../turn-compaction";
 import {
+	assistantMixed,
 	assistantText,
 	assistantToolCall,
+	codemodeStore,
 	multiTurnConversation,
 	resetIds,
 	toolCompaction,
@@ -191,6 +194,40 @@ describe("formatEntryLines", () => {
 
 		expect(lines[0]).toContain("3 lines");
 		expect(lines[0]).not.toContain("line1");
+	});
+});
+
+// --- rebuildEntries (tool mode) ---
+
+describe("rebuildEntries", () => {
+	it("removes the codemode-store and result with its call (no orphan)", () => {
+		const entries = [
+			userMessage("run a script"),
+			assistantMixed("running", { name: "codemode", args: { code: "x" } }),
+			codemodeStore(),
+			toolResult("codemode", "done"),
+			assistantText("Finished."),
+		];
+		const group = at(findToolGroups(entries), 0);
+		const rebuilt = rebuildEntries(entries, [
+			{ ...group, compacted: "summary" },
+		]);
+
+		// No toolResult may survive without its matching toolCall.
+		const hasToolResult = rebuilt.some(
+			(e) => e.type === "message" && e.message.role === "toolResult",
+		);
+		const hasCodemodeStore = rebuilt.some(
+			(e) => e.type === "custom" && e.customType === "codemode-store",
+		);
+		expect(hasToolResult).toBe(false);
+		expect(hasCodemodeStore).toBe(false);
+		expect(
+			rebuilt.some(
+				(e) =>
+					e.type === "custom_message" && e.customType === "tool-compaction",
+			),
+		).toBe(true);
 	});
 });
 

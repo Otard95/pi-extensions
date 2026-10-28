@@ -56,6 +56,21 @@ function isToolGroupEntry(entry: SessionEntry): boolean {
 	return false;
 }
 
+/**
+ * codemode writes a `codemode-store` custom entry between a tool call and its
+ * result when a script uses store()/load(). It belongs to the surrounding tool
+ * group — if the group splits here, the result is orphaned from its call.
+ */
+function isCodemodeStoreEntry(entry: SessionEntry): boolean {
+	return entry.type === "custom" && entry.customType === "codemode-store";
+}
+
+/** Is this entry a member of an in-progress tool group during collection?
+ *  Includes the codemode-store side-effect entry so it stays inside the group. */
+function isToolGroupMember(entry: SessionEntry): boolean {
+	return isToolGroupEntry(entry) || isCodemodeStoreEntry(entry);
+}
+
 /** Estimate tokens for just the toolCall blocks in an assistant message. */
 function estimateToolCallTokens(msg: AssistantMessage): number {
 	let tokens = 0;
@@ -269,11 +284,20 @@ export function findToolGroups(turnEntries: SessionEntry[]): ToolGroup[] {
 			continue;
 		}
 
-		// Collect consecutive tool entries
+		// Collect consecutive tool entries, absorbing codemode-store entries that
+		// sit between a tool call and its result.
 		let j = toolStart + 1;
-		while (j < turnEntries.length && isToolGroupEntry(at(turnEntries, j))) {
+		while (j < turnEntries.length && isToolGroupMember(at(turnEntries, j))) {
 			toolEntries.push(at(turnEntries, j));
 			j++;
+		}
+
+		// Never let a group end on a dangling codemode-store (its result sits
+		// outside the group). Drop trailing store entries so endId stays on a
+		// real tool entry.
+		while (toolEntries.length > 1 && isCodemodeStoreEntry(last(toolEntries))) {
+			toolEntries.pop();
+			j--;
 		}
 
 		// Find pre-context: walk backwards from group start
