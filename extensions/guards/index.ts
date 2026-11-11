@@ -6,15 +6,14 @@
  * - read_duplicate: bash read commands (cat, grep, find) when dedicated tools exist
  * - write_duplicate: bash file-content writes (sed -i, >, tee) when write/edit tools exist
  * - write_in_readonly: any file mutation when write/edit tools are disabled
- * - broad_search: grep/find searching overly broad paths (/, /home, /nix, etc.)
+ * Search calls use time limits instead of broad-path approval prompts.
  *
  * Each rule has an optional warn or ask threshold and a block threshold.
  * Duplicate checks warn the model. Prohibition checks ask the user.
  */
 
 import { appendFile, mkdir } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import {
 	type ExtensionAPI,
 	type ExtensionContext,
@@ -26,23 +25,11 @@ import { type Static, Type } from "@sinclair/typebox";
 import { type JsonValue, noul, TypeSafeClient } from "@typesafe-ai/sdk";
 import { resolveValue } from "../../utils/secret/index.js";
 import { loadSettings } from "../../utils/settings.js";
-
-// Deterministic broadness block (fast path, no request needed)
-const BLOCKED_PATHS = [
-	"/",
-	"/home",
-	homedir(),
-	"/nix",
-	"/nix/store",
-	"/etc",
-	"/usr",
-	"/var",
-	"/tmp",
-	"/opt",
-	"/run",
-	"/sys",
-	"/proc",
-];
+import {
+	DIRECTORY_SEARCH_QUESTION,
+	isSearchCommand,
+	registerSearchTimeouts,
+} from "./search-timeout.js";
 
 // Trigger patterns for specific commands
 const TRIGGER_PATTERNS = {
@@ -118,7 +105,6 @@ const GuardsSettingsSchema = Type.Object({
 						read_duplicate: RuleSettingsSchema,
 						write_duplicate: RuleSettingsSchema,
 						write_in_readonly: RuleSettingsSchema,
-						broad_search: RuleSettingsSchema,
 						unnecessary_cwd_path: RuleSettingsSchema,
 					}),
 				),
@@ -149,11 +135,6 @@ type GuardsSettings = {
 				ask: number;
 				fail_mode: "closed" | "open";
 			};
-			broad_search: {
-				block: number;
-				ask: number;
-				fail_mode: "closed" | "open";
-			};
 			unnecessary_cwd_path: {
 				warn: number;
 				fail_mode: "closed" | "open";
@@ -169,7 +150,6 @@ const DEFAULT_SETTINGS: GuardsSettings = {
 			read_duplicate: { warn: 0.5, block: 0.85, fail_mode: "open" },
 			write_duplicate: { warn: 0.5, block: 0.97, fail_mode: "open" },
 			write_in_readonly: { block: 0.8, ask: 0.2, fail_mode: "closed" },
-			broad_search: { block: 0.8, ask: 0.2, fail_mode: "closed" },
 			unnecessary_cwd_path: { warn: 0.5, fail_mode: "open" },
 		},
 	},
@@ -200,10 +180,6 @@ function getSettings(): GuardsSettings {
 					...DEFAULT_SETTINGS.typesafe.rules.write_in_readonly,
 					...rules.write_in_readonly,
 				},
-				broad_search: {
-					...DEFAULT_SETTINGS.typesafe.rules.broad_search,
-					...rules.broad_search,
-				},
 				unnecessary_cwd_path: {
 					...DEFAULT_SETTINGS.typesafe.rules.unnecessary_cwd_path,
 					...rules.unnecessary_cwd_path,
@@ -217,7 +193,6 @@ type RuleId =
 	| "read_duplicate"
 	| "write_duplicate"
 	| "write_in_readonly"
-	| "broad_search"
 	| "unnecessary_cwd_path";
 
 interface AvailableTool {
@@ -254,6 +229,8 @@ interface TelemetryRecord {
 	activeTools: string[];
 	triggers: TriggerResult[];
 	questions: Array<{ id: RuleId; noul: number }>;
+	directorySearch?: number;
+	searchTimeout?: number;
 	decision: "block" | "ask" | "warn" | "allow";
 	decidedBy?: { id: RuleId; noul: number };
 	thresholds: GuardsSettings["typesafe"]["rules"];
@@ -350,15 +327,6 @@ function buildApplicableRules(
 		});
 	}
 
-	// broad_search: find/grep present
-	if (categories.has("grep") || categories.has("find")) {
-		rules.push({
-			id: "broad_search",
-			question:
-				"Does this command recursively search filesystem contents or traverse files from an overly broad location, such as the entire home directory, filesystem root, or a system directory? Do not count commands that only filter output from another command, such as ps, journalctl, git, or systemctl.",
-		});
-	}
-
 	if (categories.has("cwdPath")) {
 		rules.push({
 			id: "unnecessary_cwd_path",
@@ -377,10 +345,9 @@ async function callTypeSafe(
 	thresholds: GuardsSettings["typesafe"]["rules"],
 	model: string,
 	token: string | undefined,
-): Promise<Map<RuleId, number>> {
-	if (rules.length === 0) return new Map();
-
-	const client = new TypeSafeClient({ apiKey: await getToken(token) });
+): Promise<{ nouls: Map<RuleId, number>; directorySearch?: number }> {
+	const classifySearch = isSearchCommand(command);
+	if (rules.length === 0 && !classifySearch) return { nouls: new Map() };
 	const questions: Record<string, ReturnType<typeof noul>> = {};
 
 	for (const rule of rules) {
@@ -394,7 +361,11 @@ async function callTypeSafe(
 		);
 	}
 
+	if (classifySearch)
+		questions["directory_search"] = noul(DIRECTORY_SEARCH_QUESTION);
+
 	try {
+		const client = new TypeSafeClient({ apiKey: await getToken(token) });
 		const response = await client.systemOne({
 			model,
 			state: { command, cwd },
@@ -408,7 +379,12 @@ async function callTypeSafe(
 				results.set(rule.id, answer.noul);
 			}
 		}
-		return results;
+		const searchAnswer = response.answers["directory_search"];
+		return {
+			nouls: results,
+			directorySearch:
+				searchAnswer && "noul" in searchAnswer ? searchAnswer.noul : undefined,
+		};
 	} catch (_error) {
 		const results = new Map<RuleId, number>();
 		for (const rule of rules) {
@@ -417,7 +393,7 @@ async function callTypeSafe(
 				thresholds[rule.id].fail_mode === "closed" ? 0.99 : 0.0,
 			);
 		}
-		return results;
+		return { nouls: results };
 	}
 }
 
@@ -439,7 +415,6 @@ function getRuleTriggers(ruleId: RuleId, triggers: TriggerResult[]): string[] {
 		read_duplicate: ["read", "grep", "find"],
 		write_duplicate: ["writeContent"],
 		write_in_readonly: ["writeMutation"],
-		broad_search: ["grep", "find"],
 		unnecessary_cwd_path: ["cwdPath"],
 	};
 
@@ -513,6 +488,7 @@ async function checkTypeSafeGuards(
 	event: ToolCallEvent,
 	ctx: ExtensionContext,
 	pi: ExtensionAPI,
+	limitSearch: (event: ToolCallEvent) => void,
 ): Promise<{ block: true; reason: string } | undefined> {
 	if (!isToolCallEventType("bash", event)) return;
 
@@ -532,10 +508,11 @@ async function checkTypeSafeGuards(
 		}));
 
 	const rules = buildApplicableRules(triggers, activeTools, allTools);
-	if (rules.length === 0) return; // No applicable rules
+	if (rules.length === 0 && !isSearchCommand(command)) return;
 
 	const settings = getSettings();
 	if (!settings.typesafe.token && !process.env["TYPESAFE_API_KEY"]) {
+		if (rules.length === 0) return;
 		return {
 			block: true,
 			reason:
@@ -543,7 +520,7 @@ async function checkTypeSafeGuards(
 		};
 	}
 
-	const nouls = await callTypeSafe(
+	const { nouls, directorySearch } = await callTypeSafe(
 		command,
 		ctx.cwd,
 		rules,
@@ -552,6 +529,23 @@ async function checkTypeSafeGuards(
 		settings.typesafe.token,
 	);
 
+	if (
+		directorySearch !== undefined &&
+		directorySearch >= 0.8 &&
+		directorySearch <= 1
+	) {
+		limitSearch(event);
+	}
+
+	const searchTelemetry = {
+		directorySearch,
+		searchTimeout:
+			directorySearch !== undefined &&
+			directorySearch >= 0.8 &&
+			directorySearch <= 1
+				? event.input.timeout
+				: undefined,
+	};
 	const { decision, decidedBy } = decideOverall(nouls, settings.typesafe.rules);
 
 	let userAnswer: boolean | undefined;
@@ -599,6 +593,7 @@ async function checkTypeSafeGuards(
 				decidedBy,
 				thresholds: settings.typesafe.rules,
 				userAnswer,
+				...searchTelemetry,
 			});
 			return {
 				block: true,
@@ -618,6 +613,7 @@ async function checkTypeSafeGuards(
 		decidedBy,
 		thresholds: settings.typesafe.rules,
 		userAnswer,
+		...searchTelemetry,
 	});
 
 	if (decision === "block" && decidedBy) {
@@ -630,44 +626,9 @@ async function checkTypeSafeGuards(
 	return undefined; // allow
 }
 
-// Deterministic path guard (fast, free check for unambiguous cases)
-function checkDeterministicPathGuard(
-	event: ToolCallEvent,
-	cwd: string,
-): { block: true; reason: string } | undefined {
-	if (
-		!isToolCallEventType("grep", event) &&
-		!isToolCallEventType("find", event)
-	)
-		return;
-
-	const input = event.input as { path?: string; pattern?: string };
-
-	if (input.path) {
-		const resolved = resolve(cwd, input.path).replace(/\/+$/, "") || "/";
-		if (BLOCKED_PATHS.includes(resolved)) {
-			return {
-				block: true,
-				reason: `Blocked: path "${input.path}" resolves to "${resolved}" which is too broad. Use a more specific directory.`,
-			};
-		}
-	}
-
-	if (input.pattern && /^\/.*\*\*/.test(input.pattern)) {
-		return {
-			block: true,
-			reason: `Blocked: pattern "${input.pattern}" searches from filesystem root. Use a relative pattern or set a specific path.`,
-		};
-	}
-}
-
 export default function guardsExtension(pi: ExtensionAPI) {
+	const limitSearch = registerSearchTimeouts(pi);
 	pi.on("tool_call", async (event, ctx) => {
-		// Fast deterministic checks first
-		const pathBlock = checkDeterministicPathGuard(event, ctx.cwd);
-		if (pathBlock) return pathBlock;
-
-		// TypeSafe-powered checks
-		return await checkTypeSafeGuards(event, ctx, pi);
+		return await checkTypeSafeGuards(event, ctx, pi, limitSearch);
 	});
 }

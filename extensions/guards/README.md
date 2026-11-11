@@ -27,7 +27,6 @@ The extension scans a bash command for listed commands. It sends one TypeSafe re
 | `read_duplicate` | `cat`, `less`, `more`, `head`, `tail`, `bat`, `grep`, `rg`, `ripgrep`, `find` | The matching read, grep, or find tool is active. | Warn the model or block the command. |
 | `write_duplicate` | `sed -i`, `perl -i`, `awk -i inplace`, `tee`, `dd of=`, redirects, and heredocs | The write or edit tool is active. | Warn the model or block the command. |
 | `write_in_readonly` | File writes, moves, copies, removals, permission changes, links, and Git write commands | The write and edit tools are inactive. | Ask the user or block the command. |
-| `broad_search` | `grep`, `rg`, `ripgrep`, `find` | Always. | Ask the user or block the command. |
 | `unnecessary_cwd_path` | The command repeats the current working directory. | Always. | Warn the model only. |
 
 The duplicate checks receive the active tool names, descriptions, parameter schemas, and prompt guidelines. This lets the model decide if a tool fits the task.
@@ -52,7 +51,6 @@ The default duplicate rules warn at `0.5` and fail open. The read rule blocks at
         "read_duplicate": { "warn": 0.5, "block": 0.85, "fail_mode": "open" },
         "write_duplicate": { "warn": 0.5, "block": 0.97, "fail_mode": "open" },
         "write_in_readonly": { "ask": 0.2, "block": 0.8, "fail_mode": "closed" },
-        "broad_search": { "ask": 0.2, "block": 0.8, "fail_mode": "closed" },
         "unnecessary_cwd_path": { "warn": 0.5, "fail_mode": "open" }
       }
     }
@@ -62,13 +60,28 @@ The default duplicate rules warn at `0.5` and fail open. The read rule blocks at
 
 If a check has no `warn` value, it allows below `block`. If a check has no `ask` value, it allows below `block`.
 
-## Direct path checks
+## Search time limits
 
-The extension blocks direct `grep` and `find` tool calls for known broad paths. These include `/`, `/home`, the home directory, `/nix`, `/etc`, `/usr`, `/var`, `/tmp`, `/opt`, `/run`, `/sys`, and `/proc`.
+Searches use time limits instead of broad-path blocks or approval prompts. Direct `grep` and `find` tools always use these limits.
 
-It also blocks root-anchored glob patterns such as `/**`.
+For bash commands that contain `grep`, `rg`, `ripgrep`, or `find`, Jev answers one additional question in the existing guard request:
 
-These checks do not call TypeSafe.
+> Does this command search directory trees or discover files?
+
+The question excludes filtering piped output, reading specific files, and search words inside quoted text. This includes log filters after builds or tests.
+
+The extension applies a search time limit only when the answer is at least `0.8`. A lower, missing, invalid, or failed answer preserves the original timeout.
+
+- No timeout: use 2 seconds.
+- A positive timeout up to 10 seconds: keep it.
+- A timeout above 10 seconds: clamp it to 10 seconds.
+- An invalid timeout: use 2 seconds.
+
+The direct tools accept an optional `timeout` in seconds. Bash uses its existing `timeout` parameter. The time limit applies to the whole bash command, including pipelines and other commands in the same call.
+
+When a search times out, the tool reports: `Search exceeded its {N}s limit. Narrow the path or pattern before retrying.`
+
+Direct tool limits do not call TypeSafe. Bash classification shares one request with other guard questions. It never asks for approval or blocks a command. Other guard checks still apply. Old `broad_search` settings no longer affect searches.
 
 ## Tuning log
 
@@ -80,5 +93,6 @@ The extension appends JSONL records to `guards-tuning.jsonl` in the Pi agent dir
 - Noul values and active thresholds.
 - The decision and rule that caused it.
 - The user answer for an `ask` check.
+- The directory-search probability and applied search timeout, when present.
 
 Use the records to tune the thresholds for each rule.
