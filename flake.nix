@@ -19,7 +19,7 @@
         packages = {
           default = pkgs.stdenv.mkDerivation (finalAttrs: {
             pname = "pi-extensions";
-            version = "0.24.0";
+            version = "0.25.0";
 
             src = self;
 
